@@ -6,14 +6,12 @@
     <title>Plant Explorer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Updated Google Fonts for an earthy/exotic feel -->
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;700&family=Lora:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
             margin: 0;
-            /* New earthy background gradient */
-            font-family: 'Lora', serif; /* Body text font */
-            background: linear-gradient(to bottom right, #8B5E3C, #4A6B5B, #D4E7C5); /* Earthy tones */
+            font-family: 'Lora', serif;
+            background: linear-gradient(to bottom right, #8B5E3C, #4A6B5B, #D4E7C5);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -23,10 +21,8 @@
             overflow-y: auto;
             overflow-x: hidden;
         }
-
         .container {
-            /* Muted, natural background for the main container */
-            background-color: rgba(255, 255, 255, 0.85); /* Slightly transparent white for a softer look */
+            background-color: rgba(255, 255, 255, 0.85);
             border-radius: 1.5rem;
             padding: 2rem;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -35,41 +31,35 @@
             text-align: center;
             margin-top: 2rem;
             margin-bottom: 2rem;
-            border: 2px solid #6B8E23; /* Earthy green border */
+            border: 2px solid #6B8E23;
         }
-
         .header-title {
-            /* New font and color for the title */
-            font-family: 'Cormorant Garamond', serif; /* Heading font */
+            font-family: 'Cormorant Garamond', serif;
             font-size: 3.5rem;
-            font-weight: 700; /* Adjusted weight for Cormorant Garamond */
-            color: #4A6B5B; /* Forest green title */
+            font-weight: 700;
+            color: #4A6B5B;
             margin-bottom: 1.5rem;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
         }
-
-        .search-input { /* Kept for image upload input styling */
+        .search-input {
             flex-grow: 1;
             padding: 0.75rem 1.25rem;
             border-radius: 9999px;
-            border: 2px solid #A7D9B2; /* Muted green border */
+            border: 2px solid #A7D9B2;
             outline: none;
             font-size: 1.1rem;
-            font-family: 'Lora', serif; /* Match body font */
+            font-family: 'Lora', serif;
             max-width: 400px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             transition: border-color 0.3s ease;
             color: #333;
-            background-color: #F5F5DC; /* Beige input background */
+            background-color: #F5F5DC;
         }
-
         .search-input:focus {
-            border-color: #8B5E3C; /* Earthy brown focus */
+            border-color: #8B5E3C;
         }
-
         .search-button {
-            /* New button colors */
-            background-color: #6B8E23; /* Olive green button */
+            background-color: #6B8E23;
             color: white;
             padding: 0.75rem 1.75rem;
             border-radius: 9999px;
@@ -80,31 +70,27 @@
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
         }
-
         .search-button:hover {
-            background-color: #4A6B5B; /* Darker forest green on hover */
+            background-color: #4A6B5B;
             transform: translateY(-2px);
         }
         .search-button:active {
             transform: translateY(0);
         }
-        
         .disease-button {
-            background-color: #c13c3c; /* A reddish color for disease */
+            background-color: #c13c3c;
         }
         .disease-button:hover {
             background-color: #a02d2d;
         }
-
         .results-grid, .disease-results-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1.5rem;
             margin-top: 2rem;
         }
-
         .plant-card, .disease-card {
-            background-color: #F5F5DC; /* Beige card background */
+            background-color: #F5F5DC;
             border-radius: 1rem;
             padding: 1.5rem;
             box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
@@ -113,18 +99,15 @@
             flex-direction: column;
             align-items: center;
             transition: transform 0.2s ease-in-out;
-            border: 2px solid #8B5E3C; /* Earthy brown border */
+            border: 2px solid #8B5E3C;
         }
-        
         .plant-card {
-             cursor: pointer; /* Make cards clickable */
+             cursor: pointer;
         }
-
         .plant-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
         }
-
         .plant-image {
             width: 100%;
             height: 200px;
@@ -133,22 +116,19 @@
             margin-bottom: 1rem;
             border: 1px solid #ccc;
         }
-
         .plant-name, .disease-name {
             font-size: 1.8rem;
             font-weight: 700;
-            color: #4A6B5B; /* Forest green for plant names */
+            color: #4A6B5B;
             margin-bottom: 0.5rem;
             text-align: center;
         }
-        
         .disease-name {
             color: #a02d2d;
         }
-
         .plant-scientific {
             font-style: italic;
-            color: #5A4F4A; /* Darker muted brown for scientific names */
+            color: #5A4F4A;
             margin-bottom: 0.5rem;
         }
         .plant-score, .disease-score {
@@ -157,13 +137,11 @@
             margin-bottom: 0.25rem;
             font-weight: bold;
         }
-
         .plant-detail {
             font-size: 0.95rem;
-            color: #5A4F4A; /* Darker muted brown for details */
+            color: #5A4F4A;
             margin-bottom: 0.25rem;
         }
-
         .message-box {
             position: fixed;
             top: 50%;
@@ -177,15 +155,13 @@
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
             pointer-events: none;
-            font-family: 'Lora', serif; /* Match new body font */
+            font-family: 'Lora', serif;
             text-align: center;
         }
         .message-box.show {
             opacity: 1;
             pointer-events: auto;
         }
-
-        /* Styles for the image upload section */
         .image-upload-section {
             display: flex;
             flex-direction: column;
@@ -195,7 +171,6 @@
             padding-top: 1.5rem;
             border-top: 1px dashed #ccc;
         }
-
         .image-upload-input {
             border: 2px dashed #A7D9B2;
             border-radius: 0.75rem;
@@ -211,7 +186,6 @@
         .image-upload-input:hover {
             border-color: #6B8E23;
         }
-
         .image-preview {
             max-width: 250px;
             max-height: 250px;
@@ -220,8 +194,6 @@
             object-fit: contain;
             margin-top: 1rem;
         }
-
-        /* Detail View Specific Styles */
         .detail-container {
             background-color: rgba(255, 255, 255, 0.9);
             border-radius: 1.5rem;
@@ -234,14 +206,12 @@
             border: 2px solid #6B8E23;
             text-align: left;
         }
-
         .detail-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2rem;
         }
-
         .detail-title {
             font-family: 'Cormorant Garamond', serif;
             font-size: 2.8rem;
@@ -249,7 +219,6 @@
             color: #4A6B5B;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
         }
-
         .detail-content-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -260,36 +229,31 @@
                 grid-template-columns: 1fr 1fr;
             }
         }
-
         .detail-section-title {
             font-size: 1.8rem;
             font-weight: 700;
             color: #6B8E23;
             margin-bottom: 1rem;
         }
-
         .detail-info-item {
             display: flex;
             align-items: flex-start;
             margin-bottom: 0.75rem;
             color: #5A4F4A;
         }
-
         .detail-info-item i {
             margin-right: 0.75rem;
             font-size: 1.2rem;
             color: #4A6B5B;
-            width: 24px; /* Fixed width for icon alignment */
+            width: 24px;
             text-align: center;
         }
-
         .gallery-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 1rem;
             margin-top: 1.5rem;
         }
-
         .gallery-grid img {
             width: 100%;
             height: 150px;
@@ -303,25 +267,12 @@
         .gallery-grid img:hover {
             transform: scale(1.05);
         }
-
-
         @media (max-width: 768px) {
-            body {
-                padding: 1rem;
-            }
-            .header-title {
-                font-size: 2.2rem;
-            }
-            .search-input {
-                width: 100%;
-                max-width: none;
-            }
-            .search-button {
-                width: 100%;
-            }
-            .detail-title {
-                font-size: 2rem;
-            }
+            body { padding: 1rem; }
+            .header-title { font-size: 2.2rem; }
+            .search-input { width: 100%; max-width: none; }
+            .search-button { width: 100%; }
+            .detail-title { font-size: 2rem; }
         }
     </style>
 </head>
@@ -329,8 +280,6 @@
 
     <div id="main-view" class="container">
         <h1 class="header-title">Plant Explorer</h1>
-
-        <!-- Text Search Section -->
         <div class="mb-8">
             <h2 class="text-2xl font-bold text-[#4A6B5B] mb-4">Search by Name</h2>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
@@ -338,8 +287,6 @@
                 <button id="searchPlantByNameBtn" class="search-button">Search Plant</button>
             </div>
         </div>
-
-        <!-- Image Upload Section -->
         <div class="image-upload-section">
             <h2 class="text-2xl font-bold text-[#4A6B5B]">Identify or Detect Disease from Image</h2>
             <label for="imageUploadInput" class="image-upload-input">
@@ -352,17 +299,11 @@
             </div>
             <img id="uploadedImagePreview" class="image-preview hidden" src="#" alt="Image Preview">
         </div>
-
-        <div id="plantResults" class="results-grid">
-            <!-- Plant cards will be inserted here -->
-        </div>
-        <div id="diseaseResults" class="disease-results-grid">
-            <!-- Disease results will be inserted here -->
-        </div>
+        <div id="plantResults" class="results-grid"></div>
+        <div id="diseaseResults" class="disease-results-grid"></div>
         <p id="statusMessage" class="text-gray-600 mt-4"></p>
     </div>
 
-    <!-- Detail View -->
     <div id="detail-view" class="hidden detail-container">
         <header class="detail-header">
             <h2 id="detail-title" class="detail-title"></h2>
@@ -370,27 +311,20 @@
                 <i class="fas fa-arrow-left mr-2"></i> Back to Results
             </button>
         </header>
-        <div id="detail-content" class="detail-content-grid">
-            <!-- Plant details will be inserted here -->
-        </div>
+        <div id="detail-content" class="detail-content-grid"></div>
         <div class="mt-8">
             <h3 class="detail-section-title">Photo Gallery</h3>
             <div id="gallery-loader" class="text-center hidden my-8">
                 <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-green-500"></div>
                 <p class="mt-4 text-gray-600">Fetching more photos...</p>
             </div>
-            <div id="gallery-grid" class="gallery-grid">
-                <!-- Gallery images will be inserted here -->
-            </div>
+            <div id="gallery-grid" class="gallery-grid"></div>
         </div>
     </div>
 
-    <!-- Message Box for general messages -->
     <div id="messageBox" class="message-box"></div>
-
     <audio id="mainClickSoundElement" preload="auto">
         <source src="click.mp3" type="audio/mpeg">
-        Your browser does not support the audio element.
     </audio>
 
     <script>
@@ -399,14 +333,13 @@
         const searchPlantByNameBtn = document.getElementById('searchPlantByNameBtn');
         const imageUploadInput = document.getElementById('imageUploadInput');
         const identifyImageBtn = document.getElementById('identifyImageBtn');
-        const detectDiseaseBtn = document.getElementById('detectDiseaseBtn'); // New
+        const detectDiseaseBtn = document.getElementById('detectDiseaseBtn');
         const uploadedImagePreview = document.getElementById('uploadedImagePreview');
         const plantResults = document.getElementById('plantResults');
-        const diseaseResults = document.getElementById('diseaseResults'); // New
+        const diseaseResults = document.getElementById('diseaseResults');
         const statusMessage = document.getElementById('statusMessage');
         const messageBox = document.getElementById('messageBox');
         const mainClickSoundElement = document.getElementById('mainClickSoundElement');
-
         const mainView = document.getElementById('main-view');
         const detailView = document.getElementById('detail-view');
         const backBtn = document.getElementById('back-btn');
@@ -419,120 +352,66 @@
         let lastPlantSearchResults = [];
 
         // --- API Configuration ---
-        const BACKEND_API_BASE_URL = 'https://smartypantsbe.onrender.com'; // Base URL for your backend
-        const PEXELS_API_PROXY_URL_FOR_SEARCH = `${BACKEND_API_BASE_URL}/api/pexels-images2`; 
-        
+        const BACKEND_API_BASE_URL = 'https://smartypantsbe.onrender.com';
+        const PEXELS_API_PROXY_URL_FOR_SEARCH = `${BACKEND_API_BASE_URL}/api/pexels-images2`;
         const wikipediaApiUrl = 'https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*';
-        const commonsApiUrl = 'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*';
-
+        
         // --- Utility Functions ---
         function playClickSound() {
             if (mainClickSoundElement) {
-                mainClickSoundElement.currentTime = 0; 
-                mainClickSoundElement.play().catch(e => {
-                    console.warn("Error playing click sound:", e);
-                });
+                mainClickSoundElement.currentTime = 0;
+                mainClickSoundElement.play().catch(e => console.warn("Error playing sound:", e));
             }
         }
-
         function showMessageBox(message, duration = 3000) {
             messageBox.textContent = message;
             messageBox.classList.add('show');
-            setTimeout(() => {
-                messageBox.classList.remove('show');
-            }, duration);
-        }
-
-        function getWikipediaSearchTerms(plantName) {
-            if (!plantName || typeof plantName !== 'string') return [];
-            const terms = new Set();
-            const lowerCaseName = plantName.toLowerCase();
-            terms.add(plantName);
-            const commonSuffixes = [' plant', ' flower', ' tree', ' herb', ' shrub', ' vine', ' fern', ' moss', ' cactus', ' succulent'];
-            for (const suffix of commonSuffixes) {
-                if (!lowerCaseName.endsWith(suffix)) {
-                    terms.add(plantName + suffix);
-                }
-            }
-            for (const suffix of commonSuffixes) {
-                if (lowerCaseName.endsWith(suffix.trim())) {
-                    const strippedName = plantName.substring(0, plantName.length - suffix.length).trim();
-                    if (strippedName) terms.add(strippedName);
-                }
-            }
-            if (!lowerCaseName.includes('(')) {
-                for (const suffix of commonSuffixes) {
-                    const cleanSuffix = suffix.trim();
-                    if (cleanSuffix) {
-                        terms.add(`${plantName} (${cleanSuffix})`);
-                        if (lowerCaseName.endsWith(suffix.trim())) {
-                            const strippedName = plantName.substring(0, plantName.length - cleanSuffix.length).trim();
-                            if (strippedName) terms.add(`${strippedName} (${cleanSuffix})`);
-                        }
-                    }
-                }
-            }
-            return Array.from(terms).map(term => encodeURIComponent(term));
-        }
-
-        async function fetchWikipediaPlantDetails(plantName) {
-            const searchTerms = getWikipediaSearchTerms(plantName);
-            for (const queryTitle of searchTerms) {
-                const url = `${wikipediaApiUrl}&prop=extracts|pageprops|info&exintro=1&explaintext=1&redirects=1&titles=${queryTitle}&inprop=url`;
-                try {
-                    const response = await fetch(url);
-                    if (!response.ok) continue;
-                    const data = await response.json();
-                    const pages = data.query?.pages;
-                    if (pages) {
-                        const pageId = Object.keys(pages)[0];
-                        const page = pages[pageId];
-                        if (page && !page.missing) {
-                            // Simplified validation for brevity
-                            return {
-                                commonName: plantName,
-                                scientificName: 'N/A', // Placeholder
-                                family: 'N/A',
-                                genus: 'N/A',
-                                characteristics: { description: page.extract || 'No description.' },
-                                wikipedia_url: page.fullurl
-                            };
-                        }
-                    }
-                } catch (error) {
-                    console.error(`Error fetching Wikipedia details for "${decodeURIComponent(queryTitle)}":`, error);
-                }
-            }
-            return null;
+            setTimeout(() => messageBox.classList.remove('show'), duration);
         }
         
+        // Simplified Wikipedia fetch for brevity
+        async function fetchWikipediaPlantDetails(plantName) {
+            const url = `${wikipediaApiUrl}&prop=extracts&exintro=1&explaintext=1&redirects=1&titles=${encodeURIComponent(plantName)}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) return null;
+                const data = await response.json();
+                const page = Object.values(data.query.pages)[0];
+                if (page && !page.missing) {
+                    return {
+                        commonName: plantName,
+                        scientificName: 'N/A',
+                        family: 'N/A',
+                        genus: 'N/A',
+                        characteristics: { description: page.extract || 'No description.' },
+                        wikipedia_url: page.fullurl
+                    };
+                }
+            } catch (error) { console.error("Wiki fetch error:", error); }
+            return null;
+        }
+
         async function fetchPlantImage(plantName) {
             if (!plantName) return null;
             try {
-                const pexelsResponse = await fetch(`${PEXELS_API_PROXY_URL_FOR_SEARCH}?query=${encodeURIComponent(plantName)}&per_page=1`);
-                if (pexelsResponse.ok) {
-                    const pexelsData = await pexelsResponse.json();
-                    if (pexelsData.photos && pexelsData.photos.length > 0) {
-                        return pexelsData.photos[0].src.large;
-                    }
+                const response = await fetch(`${PEXELS_API_PROXY_URL_FOR_SEARCH}?query=${encodeURIComponent(plantName)}&per_page=1`);
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.photos?.[0]?.src.large || null;
                 }
-            } catch (error) {
-                console.error('Error fetching from Pexels proxy:', error);
-            }
-            return null; // Fallback
+            } catch (error) { console.error("Pexels fetch error:", error); }
+            return null;
         }
 
         async function fetchAllGalleryImages(plantName) {
             if (!plantName) return [];
             try {
-                const pexelsResponse = await fetch(`${PEXELS_API_PROXY_URL_FOR_SEARCH}?query=${encodeURIComponent(plantName)}&per_page=10`);
-                if (pexelsResponse.ok) {
-                    const pexelsData = await pexelsResponse.json();
-                    return pexelsData.photos.map(p => p.src.large);
+                const response = await fetch(`${PEXELS_API_PROXY_URL_FOR_SEARCH}?query=${encodeURIComponent(plantName)}&per_page=10`);
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.photos?.map(p => p.src.large) || [];
                 }
-            } catch (error) {
-                console.error('Error fetching gallery from Pexels proxy:', error);
-            }
+            } catch (error) { console.error("Pexels gallery fetch error:", error); }
             return [];
         }
 
@@ -544,30 +423,25 @@
                 return;
             }
             statusMessage.textContent = `Found ${plants.length} results.`;
-            const plantCardPromises = plants.map(async (plant) => {
+            const cards = await Promise.all(plants.map(async (plant) => {
                 const card = document.createElement('div');
                 card.className = 'plant-card';
                 card.dataset.plantScientificName = plant.scientificName;
                 const nameForImageSearch = (plant.commonName && plant.commonName.toLowerCase() !== 'n/a') ? plant.commonName : plant.scientificName;
-                const imageUrl = await fetchPlantImage(nameForImageSearch);
-                plant.imageUrl = imageUrl;
+                plant.imageUrl = await fetchPlantImage(nameForImageSearch);
                 card.innerHTML = `
-                    <img src="${imageUrl || 'https://placehold.co/200x200/cccccc/000000?text=No+Image'}" alt="${plant.commonName || plant.scientificName}" class="plant-image">
+                    <img src="${plant.imageUrl || 'https://placehold.co/200x200/cccccc/000000?text=No+Image'}" alt="${plant.commonName || plant.scientificName}" class="plant-image">
                     <h3 class="plant-name">${plant.commonName || 'N/A'}</h3>
                     <p class="plant-scientific">${plant.scientificName || 'N/A'}</p>
                     ${isIdentificationResult && plant.score ? `<p class="plant-score">Confidence: ${(plant.score * 100).toFixed(2)}%</p>` : ''}
-                    <p class="plant-detail">Family: ${plant.family || 'N/A'}</p>
-                    <p class="plant-detail">Genus: ${plant.genus || 'N/A'}</p>
                 `;
                 return card;
-            });
-            const cards = await Promise.all(plantCardPromises);
+            }));
             cards.forEach(card => plantResults.appendChild(card));
             document.querySelectorAll('.plant-card').forEach(card => {
-                card.addEventListener('click', (e) => {
+                card.addEventListener('click', () => {
                     playClickSound();
-                    const scientificName = e.currentTarget.dataset.plantScientificName;
-                    const plantData = lastPlantSearchResults.find(p => p.scientificName === scientificName);
+                    const plantData = lastPlantSearchResults.find(p => p.scientificName === card.dataset.plantScientificName);
                     if (plantData) showDetailView(plantData);
                 });
             });
@@ -586,10 +460,7 @@
                 card.className = 'disease-card';
                 const score = (result.score * 100).toFixed(2);
                 const label = result.label.replace(/__/g, ' - ').replace(/_/g, ' ');
-                card.innerHTML = `
-                    <h3 class="disease-name">${label}</h3>
-                    <p class="disease-score">Confidence: ${score}%</p>
-                `;
+                card.innerHTML = `<h3 class="disease-name">${label}</h3><p class="disease-score">Confidence: ${score}%</p>`;
                 diseaseResults.appendChild(card);
             });
         }
@@ -604,16 +475,11 @@
             const mainImageSrc = plant.imageUrl || 'https://placehold.co/400x300/cccccc/000000?text=No+Image';
             detailContent.innerHTML = `
                 <div>
-                    <a href="${mainImageSrc}" target="_blank" rel="noopener noreferrer">
-                        <img src="${mainImageSrc}" alt="${displayName}" class="w-full h-auto object-cover rounded-lg shadow-md mb-4 cursor-pointer">
-                    </a>
+                    <a href="${mainImageSrc}" target="_blank" rel="noopener noreferrer"><img src="${mainImageSrc}" alt="${displayName}" class="w-full h-auto object-cover rounded-lg shadow-md mb-4 cursor-pointer"></a>
                     <p class="text-lg text-gray-700">${plant.characteristics.description}</p>
-                    ${plant.wikipedia_url ? `<a href="${plant.wikipedia_url}" target="_blank" class="text-blue-600 hover:underline mt-2 inline-block">Read more on Wikipedia</a>` : ''}
+                    ${plant.wikipedia_url ? `<a href="${plant.wikipedia_url}" target="_blank" class="text-blue-600 hover:underline mt-2 inline-block">Read more</a>` : ''}
                 </div>
-                <div>
-                    <h3 class="detail-section-title">Plant Details</h3>
-                    <!-- Details here -->
-                </div>
+                <div><h3 class="detail-section-title">Details</h3></div>
             `;
             const galleryImages = await fetchAllGalleryImages(displayName);
             galleryLoader.classList.add('hidden');
@@ -631,9 +497,7 @@
 
         async function identifyPlantFromImage() {
             playClickSound();
-            if (!imageUploadInput.files || imageUploadInput.files.length === 0) {
-                return showMessageBox('Please select an image file first.');
-            }
+            if (!imageUploadInput.files.length) return showMessageBox('Please select an image file.');
             const formData = new FormData();
             formData.append('image', imageUploadInput.files[0]);
             statusMessage.textContent = 'Identifying plant...';
@@ -642,11 +506,11 @@
                 const response = await fetch(`${BACKEND_API_BASE_URL}/api/user/plant/identify`, { method: 'POST', body: formData });
                 const data = await response.json();
                 if (!response.ok || data.status !== 'Success') throw new Error(data.message || 'Identification failed');
-                if (data.data && data.data.length > 0) {
+                if (data.data?.length > 0) {
                     lastPlantSearchResults = await Promise.all(data.data.map(async (plant) => {
                         const searchName = (plant.commonName && plant.commonName.toLowerCase() !== 'n/a') ? plant.commonName : plant.scientificName;
-                        const wikipediaDetails = await fetchWikipediaPlantDetails(searchName);
-                        return wikipediaDetails ? { ...plant, ...wikipediaDetails, score: plant.score } : plant;
+                        const wikiDetails = await fetchWikipediaPlantDetails(searchName);
+                        return wikiDetails ? { ...plant, ...wikiDetails, score: plant.score } : plant;
                     }));
                     renderPlantCards(lastPlantSearchResults, true);
                 } else {
@@ -661,15 +525,14 @@
 
         async function detectPlantDisease() {
             playClickSound();
-            if (!imageUploadInput.files || imageUploadInput.files.length === 0) {
-                return showMessageBox('Please select an image file first.');
-            }
+            if (!imageUploadInput.files.length) return showMessageBox('Please select an image file.');
             const formData = new FormData();
             formData.append('image', imageUploadInput.files[0]);
             statusMessage.textContent = 'Detecting disease...';
             [identifyImageBtn, detectDiseaseBtn, searchPlantByNameBtn].forEach(btn => btn.disabled = true);
             try {
-                const response = await fetch(`${BACKEND_API_BASE_URL}/api/plant-disease`, { method: 'POST', body: formData });
+                // *** CHANGED: The URL now points to your backend proxy under /api/user/ ***
+                const response = await fetch(`${BACKEND_API_BASE_URL}/api/user/plant-disease`, { method: 'POST', body: formData });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.message || 'Detection failed');
                 renderDiseaseResults(result);
@@ -687,9 +550,9 @@
             statusMessage.textContent = `Searching for "${plantName}"...`;
             [identifyImageBtn, detectDiseaseBtn, searchPlantByNameBtn].forEach(btn => btn.disabled = true);
             try {
-                const wikipediaDetails = await fetchWikipediaPlantDetails(plantName);
-                if (wikipediaDetails) {
-                    lastPlantSearchResults = [wikipediaDetails];
+                const wikiDetails = await fetchWikipediaPlantDetails(plantName);
+                if (wikiDetails) {
+                    lastPlantSearchResults = [wikiDetails];
                     renderPlantCards(lastPlantSearchResults, false);
                 } else {
                     statusMessage.textContent = `No information found for "${plantName}".`;
@@ -705,7 +568,7 @@
         identifyImageBtn.addEventListener('click', identifyPlantFromImage);
         detectDiseaseBtn.addEventListener('click', detectPlantDisease);
         imageUploadInput.addEventListener('change', () => {
-            if (imageUploadInput.files && imageUploadInput.files[0]) {
+            if (imageUploadInput.files.length) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     uploadedImagePreview.src = e.target.result;
