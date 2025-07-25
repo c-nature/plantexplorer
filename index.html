@@ -283,7 +283,6 @@
             border-radius: 0.5rem;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             border: 1px solid #A7D9B2;
-            cursor: pointer; /* Added cursor-pointer for clickable images */
         }
 
         @media (max-width: 768px) {
@@ -430,15 +429,15 @@
             // 1. Exact match
             terms.add(plantName);
 
-            // 2. Add common plant type suffixes (UPDATED for plants)
-            const commonSuffixes = [' plant', ' flower', ' tree', ' herb', ' shrub', ' vine', ' fern', ' moss', ' cactus', ' succulent', ' algae', ' fungi', ' lichen'];
+            // 2. Add common plant type suffixes
+            const commonSuffixes = [' plant', ' flower', ' tree', ' herb', ' shrub', ' vine', ' fern', ' moss', ' cactus', ' succulent'];
             for (const suffix of commonSuffixes) {
                 if (!lowerCaseName.endsWith(suffix)) {
                     terms.add(plantName + suffix);
                 }
             }
 
-            // 3. Remove common plant type suffixes if present (UPDATED for plants)
+            // 3. Remove common plant type suffixes if present
             for (const suffix of commonSuffixes) {
                 if (lowerCaseName.endsWith(suffix.trim())) {
                     const strippedName = plantName.substring(0, plantName.length - suffix.length).trim();
@@ -446,14 +445,14 @@
                 }
             }
 
-            // 4. Add common disambiguation (e.g., "Oak (tree)") (UPDATED for plants)
+            // 4. Add common disambiguation (e.g., "Oak (tree)")
             if (!lowerCaseName.includes('(')) {
                 for (const suffix of commonSuffixes) {
                     const cleanSuffix = suffix.trim();
                     if (cleanSuffix) {
                         terms.add(`${plantName} (${cleanSuffix})`);
                         if (lowerCaseName.endsWith(suffix.trim())) {
-                            const strippedName = plantName.substring(0, plantName.length - cleanSuffix.length).trim(); 
+                            const strippedName = plantName.substring(0, plantName.length - cleanSuffix.length).trim();
                             if (strippedName) terms.add(`${strippedName} (${cleanSuffix})`);
                         }
                     }
@@ -471,21 +470,14 @@
          */
         async function fetchWikipediaPlantDetails(plantName) {
             const searchTerms = getWikipediaSearchTerms(plantName);
-            // UPDATED: Plant-specific category keywords
-            const plantCategoryKeywords = [
-                'plant', 'plants', 'flowers', 'trees', 'herbs', 'shrubs', 'vines', 'ferns', 'mosses', 'cacti', 'succulents',
-                'algae', 'fungi', 'lichens', 'botany', 'flora', 'vegetation', 'plantae', 'species', 'genera', 'families', 
-                'orders', 'classes', 'phyla', 'kingdom plantae', 'photosynthesis', 'botanical'
-            ];
 
             for (const queryTitle of searchTerms) {
-                // Request categories along with extract and info
-                const url = `${wikipediaApiUrl}&prop=extracts|pageprops|info|categories&exintro=1&explaintext=1&redirects=1&titles=${queryTitle}&inprop=url&cllimit=500`; // cllimit to get more categories
+                const url = `${wikipediaApiUrl}&prop=extracts|pageprops|info&exintro=1&explaintext=1&redirects=1&titles=${queryTitle}&inprop=url`;
                 try {
                     const response = await fetch(url);
                     if (!response.ok) {
                         console.warn(`Wikipedia API (plant details) failed for "${decodeURIComponent(queryTitle)}": ${response.status}`);
-                        continue; 
+                        continue; // Try next title
                     }
                     const data = await response.json();
                     const pages = data.query?.pages;
@@ -495,63 +487,54 @@
                         const page = pages[pageId];
 
                         if (page && !page.missing) {
-                            const description = page.extract || 'No detailed description available, this must be a rare find!';
+                            const description = page.extract || 'No detailed description available from Wikipedia.';
                             const wikipediaUrl = page.fullurl || `https://en.wikipedia.org/wiki/${queryTitle}`;
                             
                             const lowerCaseDescription = description.toLowerCase();
                             const pageTitle = decodeURIComponent(queryTitle).toLowerCase();
                             const firstSentence = lowerCaseDescription.split('.')[0];
 
-                            // UPDATED: Robust Plant type validation using categories
-                            let isDefinitelyPlant = false;
-                            const categories = page.categories || [];
-
-                            // Check if any category title contains a plant-related keyword
-                            isDefinitelyPlant = categories.some(cat => {
-                                const catTitle = cat.title.toLowerCase(); 
-                                return plantCategoryKeywords.some(keyword => catTitle.includes(keyword));
-                            });
-
-                            // Fallback: If no strong category, check if the first sentence strongly indicates a plant
-                            if (!isDefinitelyPlant) {
-                                const strongTextIndicators = [
-                                    'is a species of', 'is a genus of', 'is a family of', 'is an order of', 'is a class of', 'is a phylum of', 
-                                    'kingdom plantae', 'is a plant', 'is a tree', 'is a flower', 'flora', 'botany', 'vegetation', 'photosynthesis',
-                                    'annual plant', 'perennial plant', 'biennial plant', 'herbaceous plant', 'woody plant'
-                                ];
-                                isDefinitelyPlant = strongTextIndicators.some(indicator => firstSentence.includes(indicator));
-                            }
-
-                            // Final check: If still not identified, but the original plant name is very prominent and description is substantial
-                            if (!isDefinitelyPlant) {
-                                const originalNameKeywords = plantName.toLowerCase().split(' ').filter(k => k.length > 0);
-                                const originalNameInDescription = originalNameKeywords.every(keyword => lowerCaseDescription.includes(keyword));
-                                const originalNameInTitle = originalNameKeywords.every(keyword => pageTitle.includes(keyword));
-                                isDefinitelyPlant = (originalNameInTitle && originalNameInDescription && lowerCaseDescription.length > 100);
-                            }
-
-                            // UPDATED: Non-Plant Keywords (more specific to filter out animals, concepts, etc.)
+                            // Keywords that indicate it's NOT a plant (expanded list)
                             const nonPlantKeywords = [
                                 'disambiguation', 'may refer to', 'list of', 'human', 'person', 'organization', 'company', 'building', 
-                                'vehicle', 'animal', 'mammal', 'bird', 'fish', 'reptile', 'amphibian', 'insect', 'arachnid', 'crustacean', 'mollusc',
-                                'disease', 'concept', 'event', 'geographic', 'software', 'music', 'film', 'book', 'art', 'history', 
-                                'mathematics', 'physics', 'chemistry', 'fungus', 'bacteria', 'virus' // Added more specific non-plant terms
+                                'vehicle', 'animal', 'mammal', 'bird', 'fish', 'reptile', 'amphibian', 'insect', 'disease', 'concept', 'event', 'geographic',
+                                'software', 'music', 'film', 'book', 'art', 'history', 'mathematics', 'physics', 'chemistry',
+                                'engineering', 'technology', 'tool', 'weapon', 'food', 'drink', 'sport', 'game', 'toy', 'clothing',
+                                'material', 'chemical', 'element', 'compound', 'structure', 'geology', 'astronomy', 'celestial body',
+                                'mythology', 'fictional', 'character', 'album', 'song', 'television series', 'band', 'group',
+                                'school', 'bus', 'pencil', 'object', 'abstract', 'theory', 'system', 'fungus', 'bacteria', 'virus'
                             ];
-                            const containsStrongNonPlantKeywords = nonPlantKeywords.some(keyword => 
-                                pageTitle.includes(keyword) || lowerCaseDescription.includes(keyword)
+
+                            // Check if any non-plant keywords are prominently present in title or first sentence
+                            const containsNonPlantKeywords = nonPlantKeywords.some(keyword => 
+                                pageTitle.includes(keyword) || firstSentence.includes(keyword)
                             );
 
-                            // If it's identified as a plant, but also contains strong non-plant keywords, it might be a false positive.
-                            // Prioritize direct plant category matches. If no direct category, and non-plant keyword, then skip.
-                            const hasDirectPlantCategory = categories.some(cat => plantCategoryKeywords.includes(cat.title.toLowerCase().replace('category:', '')));
-                            if (isDefinitelyPlant && containsStrongNonPlantKeywords && !hasDirectPlantCategory) {
-                                console.log(`Wikipedia page for "${plantName}" (via "${decodeURIComponent(queryTitle)}") contains non-plant keywords and no direct plant category. Skipping.`);
-                                continue; 
-                            } else if (!isDefinitelyPlant) { // If not identified as plant by any means, skip
-                                console.log(`Wikipedia page for "${plantName}" (via "${decodeURIComponent(queryTitle)}") does not meet plant criteria. Skipping.`);
-                                continue;
+                            if (containsNonPlantKeywords) {
+                                console.log(`Wikipedia page for "${plantName}" (via "${decodeURIComponent(queryTitle)}") contains non-plant keywords. Skipping.`);
+                                continue; // Skip this page and try the next search term
                             }
-                            // --- END NEW: Smarter Plant type validation ---
+
+                            // Strong plant indicators
+                            const strongPlantIndicators = [
+                                'is a species of', 'is a genus of', 'is a family of', 'is an order of', 'is a class of', 'is a phylum of', 
+                                'kingdom plantae', 'is a plant', 'is a tree', 'is a flower', 'flora', 'botany', 'vegetation', 'photosynthesis',
+                                'annual plant', 'perennial plant', 'biennial plant', 'herbaceous plant', 'woody plant'
+                            ];
+                            
+                            const isStronglyPlantByFirstSentence = strongPlantIndicators.some(indicator => firstSentence.includes(indicator));
+                            
+                            const originalNameKeywords = plantName.toLowerCase().split(' ').filter(k => k.length > 0);
+                            const originalNameInDescription = originalNameKeywords.every(keyword => lowerCaseDescription.includes(keyword));
+                            const originalNameInTitle = originalNameKeywords.every(keyword => pageTitle.includes(keyword));
+
+                            const isDefinitelyPlant = isStronglyPlantByFirstSentence || 
+                                                     (originalNameInTitle && originalNameInDescription && lowerCaseDescription.length > 100);
+
+                            if (!isDefinitelyPlant) {
+                                console.log(`Wikipedia page for "${plantName}" (via "${decodeURIComponent(queryTitle)}") does not meet strict plant criteria. Skipping.`);
+                                continue; // Skip this page and try the next search term
+                            }
 
                             // --- Heuristic parsing for plant characteristics ---
                             let scientificName = 'N/A';
@@ -849,7 +832,7 @@
 
                             const filteredResults = searchResults.filter(result => {
                                 const title = result.title.toLowerCase();
-                                const snippet = result.snippet ? result.snippet.toLowerCase() : '';
+                                const snippet = result.snippet ? snippet.toLowerCase() : '';
                                 const isImage = /\.(jpg|jpeg|png|gif|svg|webp)$/i.test(result.title);
                                 
                                 const containsAllKeywords = keywords.every(keyword => 
@@ -857,7 +840,7 @@
                                 );
                                 
                                 const isRelevant = (keywords.length > 1 && containsAllKeywords) || 
-                                                                (keywords.length === 1 && (title.includes(keywords[0]) || snippet.includes(keywords[0])));
+                                                 (keywords.length === 1 && (title.includes(keywords[0]) || snippet.includes(keywords[0])));
 
                                 return isImage && isRelevant && !processedTitles.has(result.title);
                             });
@@ -904,218 +887,218 @@
                 console.log(`Found ${imageUrls.length} gallery images from Wikimedia Commons for ${plantName}.`);
                 return imageUrls;
             }
+        }
 
-            /**
-             * Renders plant cards in the results grid.
-             * @param {Array} plants An array of plant objects.
-             * @param {boolean} isIdentificationResult True if results are from image identification (show score).
-             */
-            async function renderPlantCards(plants, isIdentificationResult = false) {
-                plantResults.innerHTML = ''; // Clear previous results
-                if (plants.length === 0) {
-                    statusMessage.textContent = `No plants found. Try uploading a different image.`;
-                    showMessageBox(`No identification found.`);
-                    return;
-                }
-
-                statusMessage.textContent = `Found ${plants.length} results.`;
-                for (const plant of plants) {
-                    const card = document.createElement('div');
-                    card.className = 'plant-card';
-                    card.dataset.plantName = plant.commonName; // Store name for detail view lookup
-
-                    let scoreHtml = '';
-                    if (isIdentificationResult && plant.score !== 'N/A') {
-                        scoreHtml = `<p class="plant-score">Confidence: ${plant.score}%</p>`;
-                    }
-
-                    // Use the PEXELS_API_PROXY_URL_FOR_SEARCH for fetching the main card image for both search types
-                    const imageUrl = await fetchPlantImage(plant.commonName);
-                    let imageHtml = `<img src="${imageUrl || 'https://placehold.co/200x200/cccccc/000000?text=No+Image'}" alt="${plant.commonName || plant.scientificName}" class="plant-image" onerror="this.onerror=null;this.src='https://placehold.co/200x200/cccccc/000000?text=No+Image';">`;
-                    
-                    card.innerHTML = `
-                        ${imageHtml}
-                        <h3 class="plant-name">${plant.commonName || 'N/A'}</h3>
-                        <p class="plant-scientific">${plant.scientificName || 'N/A'}</p>
-                        ${scoreHtml}
-                        <p class="plant-detail">Family: ${plant.family || 'N/A'}</p>
-                        <p class="plant-detail">Genus: ${plant.genus || 'N/A'}</p>
-                    `;
-                    plantResults.appendChild(card);
-                }
-
-                // Add event listeners to the new clickable cards
-                document.querySelectorAll('.plant-card').forEach(card => {
-                    card.addEventListener('click', (e) => {
-                        playClickSound();
-                        const plantName = e.currentTarget.dataset.plantName;
-                        const plantData = lastPlantSearchResults.find(p => p.commonName === plantName);
-                        if (plantData) {
-                            showDetailView(plantData);
-                        } else {
-                            showMessageBox('Could not find detailed data for this plant.');
-                        }
-                    });
-                });
+        /**
+         * Renders plant cards in the results grid.
+         * @param {Array} plants An array of plant objects.
+         * @param {boolean} isIdentificationResult True if results are from image identification (show score).
+         */
+        async function renderPlantCards(plants, isIdentificationResult = false) {
+            plantResults.innerHTML = ''; // Clear previous results
+            if (plants.length === 0) {
+                statusMessage.textContent = `No plants found. Try uploading a different image.`;
+                showMessageBox(`No identification found.`);
+                return;
             }
 
-            // --- Image Identification Function (using PlantNet via backend) ---
-            async function identifyPlantFromImage() {
-                playClickSound();
-                if (!imageUploadInput.files || imageUploadInput.files.length === 0) {
-                    showMessageBox('Please select an image file first.');
+            statusMessage.textContent = `Found ${plants.length} results.`;
+            for (const plant of plants) {
+                const card = document.createElement('div');
+                card.className = 'plant-card';
+                card.dataset.plantName = plant.commonName; // Store name for detail view lookup
+
+                let scoreHtml = '';
+                if (isIdentificationResult && plant.score !== 'N/A') {
+                    scoreHtml = `<p class="plant-score">Confidence: ${plant.score}%</p>`;
+                }
+
+                // Use the PEXELS_API_PROXY_URL_FOR_SEARCH for fetching the main card image for both search types
+                const imageUrl = await fetchPlantImage(plant.commonName);
+                let imageHtml = `<img src="${imageUrl || 'https://placehold.co/200x200/cccccc/000000?text=No+Image'}" alt="${plant.commonName || plant.scientificName}" class="plant-image" onerror="this.onerror=null;this.src='https://placehold.co/200x200/cccccc/000000?text=No+Image';">`;
+                
+                card.innerHTML = `
+                    ${imageHtml}
+                    <h3 class="plant-name">${plant.commonName || 'N/A'}</h3>
+                    <p class="plant-scientific">${plant.scientificName || 'N/A'}</p>
+                    ${scoreHtml}
+                    <p class="plant-detail">Family: ${plant.family || 'N/A'}</p>
+                    <p class="plant-detail">Genus: ${plant.genus || 'N/A'}</p>
+                `;
+                plantResults.appendChild(card);
+            }
+
+            // Add event listeners to the new clickable cards
+            document.querySelectorAll('.plant-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    playClickSound();
+                    const plantName = e.currentTarget.dataset.plantName;
+                    const plantData = lastPlantSearchResults.find(p => p.commonName === plantName);
+                    if (plantData) {
+                        showDetailView(plantData);
+                    } else {
+                        showMessageBox('Could not find detailed data for this plant.');
+                    }
+                });
+            });
+        }
+
+        // --- Image Identification Function (using PlantNet via backend) ---
+        async function identifyPlantFromImage() {
+            playClickSound();
+            if (!imageUploadInput.files || imageUploadInput.files.length === 0) {
+                showMessageBox('Please select an image file first.');
+                return;
+            }
+
+            const imageFile = imageUploadInput.files[0];
+            const formData = new FormData();
+            formData.append('image', imageFile); // 'image' is the field name expected by multer on backend
+
+            plantResults.innerHTML = ''; // Clear previous results
+            statusMessage.textContent = 'Identifying plant from image...';
+            identifyImageBtn.disabled = true;
+            searchPlantByNameBtn.disabled = true; // Disable text search during image identification
+
+            // Show image preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                uploadedImagePreview.src = e.target.result;
+                uploadedImagePreview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(imageFile);
+
+            try {
+                const response = await fetch(`${BACKEND_API_BASE_URL}/plant/identify`, {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await response.json();
+
+                if (!response.ok || data.status !== 'Success') {
+                    const errorMessage = data.message || `Error: ${response.status} ${response.statusText}`;
+                    statusMessage.textContent = `Identification failed: ${errorMessage}`;
+                    showMessageBox(`Identification failed: ${errorMessage}`);
                     return;
                 }
 
-                const imageFile = imageUploadInput.files[0];
-                const formData = new FormData();
-                formData.append('image', imageFile); // 'image' is the field name expected by multer on backend
+                if (data.data && data.data.length > 0) {
+                    statusMessage.textContent = `Enriching data for identified plants...`;
+                    // Enrich each identified plant with Wikipedia details and store
+                    lastPlantSearchResults = await Promise.all(data.data.map(async (plant) => {
+                        const wikipediaDetails = await fetchWikipediaPlantDetails(plant.commonName || plant.scientificName);
+                        if (wikipediaDetails) {
+                            // Merge PlantNet data with Wikipedia data, prioritizing PlantNet for core ID
+                            return {
+                                ...plant,
+                                commonName: plant.commonName || wikipediaDetails.commonName,
+                                scientificName: plant.scientificName || wikipediaDetails.scientificName,
+                                family: plant.family || wikipediaDetails.family,
+                                genus: plant.genus || wikipediaDetails.genus,
+                                characteristics: {
+                                    ...wikipediaDetails.characteristics, // Wikipedia provides richer characteristics
+                                    ...plant.characteristics // Overlay with any PlantNet specific characteristics if desired
+                                },
+                                wikipedia_url: wikipediaDetails.wikipedia_url
+                            };
+                        }
+                        return plant; // Return original PlantNet data if Wikipedia details not found
+                    }));
+                    
+                    renderPlantCards(lastPlantSearchResults, true); // Render enriched results (with score)
+                } else {
+                    statusMessage.textContent = `No confident identification found for the image.`;
+                    showMessageBox(`No identification found.`);
+                }
 
-                plantResults.innerHTML = ''; // Clear previous results
-                statusMessage.textContent = 'Identifying plant from image...';
-                identifyImageBtn.disabled = true;
-                searchPlantByNameBtn.disabled = true; // Disable text search during image identification
+            } catch (error) {
+                console.error('Frontend image identification error:', error);
+                statusMessage.textContent = 'An error occurred during image identification. Please try again.';
+                showMessageBox('Network error during image identification.');
+            } finally {
+                identifyImageBtn.disabled = false;
+                searchPlantByNameBtn.disabled = false; // Re-enable text search
+            }
+        }
 
-                // Show image preview
+        // --- NEW: Text Search Functionality ---
+        async function searchPlantsByName() {
+            playClickSound();
+            const plantName = plantNameSearchInput.value.trim();
+            if (!plantName) {
+                showMessageBox('Please enter a plant name to search.');
+                return;
+            }
+
+            plantResults.innerHTML = ''; // Clear previous results
+            statusMessage.textContent = `Searching for "${plantName}"...`;
+            identifyImageBtn.disabled = true; // Disable image search during text search
+            searchPlantByNameBtn.disabled = true;
+
+            // Hide image preview when performing text search
+            uploadedImagePreview.classList.add('hidden');
+            uploadedImagePreview.src = '#'; // Clear the image source
+
+            try {
+                const wikipediaDetails = await fetchWikipediaPlantDetails(plantName);
+
+                if (wikipediaDetails) {
+                    lastPlantSearchResults = [wikipediaDetails]; // Store as an array for consistent rendering
+                    renderPlantCards(lastPlantSearchResults, false); // Render without score
+                } else {
+                    statusMessage.textContent = `No detailed information found for "${plantName}" from Wikipedia.`;
+                    showMessageBox(`No information found for "${plantName}".`);
+                }
+
+            } catch (error) {
+                console.error('Frontend text search error:', error);
+                statusMessage.textContent = 'An error occurred during text search. Please try again.';
+                showMessageBox('Network error during text search.');
+            } finally {
+                identifyImageBtn.disabled = false; // Re-enable image search
+                searchPlantByNameBtn.disabled = false;
+            }
+        }
+
+
+        // --- Event Listeners ---
+        identifyImageBtn.addEventListener('click', identifyPlantFromImage);
+        imageUploadInput.addEventListener('change', () => {
+            if (imageUploadInput.files && imageUploadInput.files[0]) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     uploadedImagePreview.src = e.target.result;
                     uploadedImagePreview.classList.remove('hidden');
                 };
-                reader.readAsDataURL(imageFile);
-
-                try {
-                    const response = await fetch(`${BACKEND_API_BASE_URL}/plant/identify`, {
-                        method: 'POST',
-                        body: formData,
-                    });
-                    const data = await response.json();
-
-                    if (!response.ok || data.status !== 'Success') {
-                        const errorMessage = data.message || `Error: ${response.status} ${response.statusText}`;
-                        statusMessage.textContent = `Identification failed: ${errorMessage}`;
-                        showMessageBox(`Identification failed: ${errorMessage}`);
-                        return;
-                    }
-
-                    if (data.data && data.data.length > 0) {
-                        statusMessage.textContent = `Enriching data for identified plants...`;
-                        // Enrich each identified plant with Wikipedia details and store
-                        lastPlantSearchResults = await Promise.all(data.data.map(async (plant) => {
-                            const wikipediaDetails = await fetchWikipediaPlantDetails(plant.commonName || plant.scientificName);
-                            if (wikipediaDetails) {
-                                // Merge PlantNet data with Wikipedia data, prioritizing PlantNet for core ID
-                                return {
-                                    ...plant,
-                                    commonName: plant.commonName || wikipediaDetails.commonName,
-                                    scientificName: plant.scientificName || wikipediaDetails.scientificName,
-                                    family: plant.family || wikipediaDetails.family,
-                                    genus: plant.genus || wikipediaDetails.genus,
-                                    characteristics: {
-                                        ...wikipediaDetails.characteristics, // Wikipedia provides richer characteristics
-                                        ...plant.characteristics // Overlay with any PlantNet specific characteristics if desired
-                                    },
-                                    wikipedia_url: wikipediaDetails.wikipedia_url
-                                };
-                            }
-                            return plant; // Return original PlantNet data if Wikipedia details not found
-                        }));
-                        
-                        renderPlantCards(lastPlantSearchResults, true); // Render enriched results (with score)
-                    } else {
-                        statusMessage.textContent = `No confident identification found for the image.`;
-                        showMessageBox(`No identification found.`);
-                    }
-
-                } catch (error) {
-                    console.error('Frontend image identification error:', error);
-                    statusMessage.textContent = 'An error occurred during image identification. Please try again.';
-                    showMessageBox('Network error during image identification.');
-                } finally {
-                    identifyImageBtn.disabled = false;
-                    searchPlantByNameBtn.disabled = false; // Re-enable text search
-                }
-            }
-
-            // --- NEW: Text Search Functionality ---
-            async function searchPlantsByName() {
-                playClickSound();
-                const plantName = plantNameSearchInput.value.trim();
-                if (!plantName) {
-                    showMessageBox('Please enter a plant name to search.');
-                    return;
-                }
-
-                plantResults.innerHTML = ''; // Clear previous results
-                statusMessage.textContent = `Searching for "${plantName}"...`;
-                identifyImageBtn.disabled = true; // Disable image search during text search
-                searchPlantByNameBtn.disabled = true;
-
-                // Hide image preview when performing text search
+                reader.readAsDataURL(imageUploadInput.files[0]);
+            } else {
                 uploadedImagePreview.classList.add('hidden');
-                uploadedImagePreview.src = '#'; // Clear the image source
-
-                try {
-                    const wikipediaDetails = await fetchWikipediaPlantDetails(plantName);
-
-                    if (wikipediaDetails) {
-                        lastPlantSearchResults = [wikipediaDetails]; // Store as an array for consistent rendering
-                        renderPlantCards(lastPlantSearchResults, false); // Render without score
-                    } else {
-                        statusMessage.textContent = `No detailed information found for "${plantName}" from Wikipedia.`;
-                        showMessageBox(`No information found for "${plantName}".`);
-                    }
-
-                } catch (error) {
-                    console.error('Frontend text search error:', error);
-                    statusMessage.textContent = 'An error occurred during text search. Please try again.';
-                    showMessageBox('Network error during text search.');
-                } finally {
-                    identifyImageBtn.disabled = false; // Re-enable image search
-                    searchPlantByNameBtn.disabled = false;
-                }
+                uploadedImagePreview.src = '#';
             }
+        });
 
+        // NEW: Event listeners for text search
+        searchPlantByNameBtn.addEventListener('click', searchPlantsByName);
+        plantNameSearchInput.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                searchPlantsByName();
+            }
+        });
 
-            // --- Event Listeners ---
-            identifyImageBtn.addEventListener('click', identifyPlantFromImage);
-            imageUploadInput.addEventListener('change', () => {
-                if (imageUploadInput.files && imageUploadInput.files[0]) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        uploadedImagePreview.src = e.target.result;
-                        uploadedImagePreview.classList.remove('hidden');
-                    };
-                    reader.readAsDataURL(imageUploadInput.files[0]);
-                } else {
-                    uploadedImagePreview.classList.add('hidden');
-                    uploadedImagePreview.src = '#';
-                }
-            });
+        backBtn.addEventListener('click', () => {
+            playClickSound();
+            detailView.classList.add('hidden');
+            mainView.classList.remove('hidden');
+            // Clear detail view content when going back
+            detailTitle.textContent = '';
+            detailContent.innerHTML = '';
+            galleryGrid.innerHTML = '';
+        });
 
-            // NEW: Event listeners for text search
-            searchPlantByNameBtn.addEventListener('click', searchPlantsByName);
-            plantNameSearchInput.addEventListener('keyup', (event) => {
-                if (event.key === 'Enter') {
-                    searchPlantsByName();
-                }
-            });
-
-            backBtn.addEventListener('click', () => {
-                playClickSound();
-                detailView.classList.add('hidden');
-                mainView.classList.remove('hidden');
-                // Clear detail view content when going back
-                detailTitle.textContent = '';
-                detailContent.innerHTML = '';
-                galleryGrid.innerHTML = '';
-            });
-
-            // Initial message
-            document.addEventListener('DOMContentLoaded', () => {
-                statusMessage.textContent = 'Upload an image or enter a name to identify plants!';
-            });
-        }
+        // Initial message
+        document.addEventListener('DOMContentLoaded', () => {
+            statusMessage.textContent = 'Upload an image or enter a name to identify plants!';
+        });
     </script>
 </body>
 </html>
