@@ -283,7 +283,13 @@
             border-radius: 0.5rem;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             border: 1px solid #A7D9B2;
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out;
         }
+        .gallery-grid img:hover {
+            transform: scale(1.05);
+        }
+
 
         @media (max-width: 768px) {
             body {
@@ -747,7 +753,11 @@
             const description = characteristics.description || 'No detailed description available.';
             
             // Main image for detail view (already fetched for the card)
-            const mainImageHtml = `<img src="${plant.imageUrl || 'https://placehold.co/400x300/cccccc/000000?text=No+Image'}" alt="${displayName}" class="w-full h-auto object-cover rounded-lg shadow-md mb-4" onerror="this.onerror=null;this.src='https://placehold.co/400x300/cccccc/000000?text=No+Image';">`;
+            const mainImageSrc = plant.imageUrl || 'https://placehold.co/400x300/cccccc/000000?text=No+Image';
+            const mainImageHtml = `
+                <a href="${mainImageSrc}" target="_blank" rel="noopener noreferrer">
+                    <img src="${mainImageSrc}" alt="${displayName}" class="w-full h-auto object-cover rounded-lg shadow-md mb-4 cursor-pointer" onerror="this.onerror=null;this.src='https://placehold.co/400x300/cccccc/000000?text=No+Image';">
+                </a>`;
 
             detailContent.innerHTML = `
                 <div>
@@ -775,11 +785,18 @@
             galleryLoader.classList.add('hidden');
             if (galleryImages && galleryImages.length > 0) {
                 galleryImages.forEach(imgUrl => {
+                    const a = document.createElement('a');
+                    a.href = imgUrl;
+                    a.target = '_blank';
+                    a.rel = 'noopener noreferrer';
+
                     const img = document.createElement('img');
                     img.src = imgUrl;
                     img.alt = `${displayName} gallery image`;
-                    img.onerror = function() { this.style.display='none'; };
-                    galleryGrid.appendChild(img);
+                    img.onerror = function() { this.parentElement.style.display='none'; };
+                    
+                    a.appendChild(img);
+                    galleryGrid.appendChild(a);
                 });
             } else {
                 galleryGrid.innerHTML = '<p class="text-gray-500">No additional photos found.</p>';
