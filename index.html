@@ -101,10 +101,10 @@
             transition: transform 0.2s ease-in-out;
             border: 2px solid #8B5E3C;
         }
-        .plant-card {
+        .plant-card, .disease-card {
              cursor: pointer;
         }
-        .plant-card:hover {
+        .plant-card:hover, .disease-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
         }
@@ -267,6 +267,61 @@
         .gallery-grid img:hover {
             transform: scale(1.05);
         }
+        
+        /* --- NEW: Treatment Modal Styles --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #F5F5DC;
+            padding: 2rem;
+            border-radius: 1.5rem;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            border: 2px solid #4A6B5B;
+        }
+        .modal-close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 1.5rem;
+            color: #4A6B5B;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+        .modal-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #a02d2d;
+            margin-bottom: 1.5rem;
+        }
+        .modal-body ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        .modal-body li {
+            background-color: rgba(255, 255, 255, 0.5);
+            border-left: 4px solid #6B8E23;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.75rem;
+            border-radius: 0.5rem;
+            color: #5A4F4A;
+        }
+
         @media (max-width: 768px) {
             body { padding: 1rem; }
             .header-title { font-size: 2.2rem; }
@@ -322,6 +377,15 @@
         </div>
     </div>
 
+    <!-- NEW: Treatment Modal -->
+    <div id="treatment-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="modal-close-btn" class="modal-close-btn">&times;</button>
+            <h2 id="modal-title" class="modal-title"></h2>
+            <div id="modal-body" class="modal-body"></div>
+        </div>
+    </div>
+
     <div id="messageBox" class="message-box"></div>
     <audio id="mainClickSoundElement" preload="auto">
         <source src="click.mp3" type="audio/mpeg">
@@ -347,6 +411,11 @@
         const detailContent = document.getElementById('detail-content');
         const galleryGrid = document.getElementById('gallery-grid');
         const galleryLoader = document.getElementById('gallery-loader');
+        // New Modal elements
+        const treatmentModal = document.getElementById('treatment-modal');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
 
         // --- State ---
         let lastPlantSearchResults = [];
@@ -454,13 +523,21 @@
                 statusMessage.textContent = 'Could not detect any diseases.';
                 return;
             }
-            statusMessage.textContent = `Found ${results.length} possible disease(s).`;
+            statusMessage.textContent = `Found ${results.length} possible disease(s). Click one for treatment info.`;
             results.forEach(result => {
                 const card = document.createElement('div');
                 card.className = 'disease-card';
                 const score = (result.score * 100).toFixed(2);
                 const label = result.label.replace(/__/g, ' - ').replace(/_/g, ' ');
+                card.dataset.diseaseName = label; // Store the full name for the treatment function
                 card.innerHTML = `<h3 class="disease-name">${label}</h3><p class="disease-score">Confidence: ${score}%</p>`;
+                
+                // Add click listener to show treatment
+                card.addEventListener('click', () => {
+                    playClickSound();
+                    showDiseaseTreatment(card.dataset.diseaseName);
+                });
+
                 diseaseResults.appendChild(card);
             });
         }
@@ -494,6 +571,74 @@
                 galleryGrid.appendChild(a);
             });
         }
+        
+        // --- NEW: Functions to show and get treatment info ---
+        function showDiseaseTreatment(diseaseName) {
+            const treatmentInfo = getTreatmentInfo(diseaseName);
+            modalTitle.textContent = treatmentInfo.title;
+            
+            let html = '<ul>';
+            treatmentInfo.steps.forEach(step => {
+                html += `<li>${step}</li>`;
+            });
+            html += '</ul>';
+            html += `<p class="mt-4 text-sm text-gray-600">For more detailed information, <a href="https://www.google.com/search?q=how+to+treat+${encodeURIComponent(diseaseName)}" target="_blank" class="text-blue-600 hover:underline">search online</a>.</p>`;
+            html += `<p class="mt-2 text-xs text-gray-500">Disclaimer: This information is for educational purposes only. Always consult with a local agricultural expert for specific advice.</p>`;
+
+            modalBody.innerHTML = html;
+            treatmentModal.classList.remove('hidden');
+        }
+
+        function getTreatmentInfo(diseaseName) {
+            const lowerCaseName = diseaseName.toLowerCase();
+            let info = {
+                title: diseaseName,
+                steps: []
+            };
+
+            if (lowerCaseName.includes('bacterial spot')) {
+                info.steps = [
+                    "**Prevention is key:** Use certified disease-free seeds and transplants.",
+                    "**Improve Airflow:** Prune lower leaves and stake plants to promote drying.",
+                    "**Water at Base:** Avoid overhead watering to prevent splashing spores. Water the soil, not the leaves.",
+                    "**Sanitation:** Remove and destroy infected leaves and plants. Clean tools between uses.",
+                    "**Fungicides:** Copper-based fungicides can be used as a preventative measure. Always follow label directions."
+                ];
+            } else if (lowerCaseName.includes('early blight')) {
+                info.steps = [
+                    "**Remove Infected Leaves:** Prune off the lowest 12 inches of leaves as the plant grows.",
+                    "**Mulch:** Apply a layer of mulch (straw, plastic) to create a barrier from soil-borne spores.",
+                    "**Improve Airflow:** Space plants properly and prune suckers to allow leaves to dry quickly.",
+                    "**Crop Rotation:** Do not plant tomatoes or potatoes in the same spot for at least 3 years.",
+                    "**Fungicides:** Use fungicides containing chlorothalonil or mancozeb preventatively."
+                ];
+            } else if (lowerCaseName.includes('late blight')) {
+                info.steps = [
+                    "**Act Quickly:** This disease spreads very fast. Remove and destroy infected plants immediately (bag and trash, do not compost).",
+                    "**Check Potatoes:** Late blight also affects potatoes, which can be a source of infection.",
+                    "**Fungicides are Crucial:** Preventative spraying is the most effective control. Use products with chlorothalonil or copper.",
+                    "**Resistant Varieties:** Choose tomato varieties with known resistance to late blight.",
+                    "**Monitor Weather:** The disease thrives in cool, moist conditions. Be extra vigilant during these periods."
+                ];
+            } else if (lowerCaseName.includes('septoria leaf spot')) {
+                info.steps = [
+                    "**Remove Lower Leaves:** The disease starts on the bottom leaves and moves up. Remove infected leaves promptly.",
+                    "**Mulch:** Use mulch to prevent spores from splashing from the soil onto the plant.",
+                    "**Water Carefully:** Water at the base of the plant in the morning so leaves can dry.",
+                    "**Weed Control:** Control weeds, especially those in the nightshade family, as they can host the disease.",
+                    "**Fungicides:** Apply fungicides containing chlorothalonil or copper early."
+                ];
+            } else {
+                info.steps = [
+                    "**Improve Air Circulation:** Proper spacing and pruning can help reduce humidity and prevent many fungal and bacterial diseases.",
+                    "**Water at the Soil Level:** Avoid getting the foliage wet when you water.",
+                    "**Practice Crop Rotation:** Avoid planting the same type of plant in the same location year after year.",
+                    "**Maintain Garden Hygiene:** Clean up and destroy infected plant debris at the end of the season."
+                ];
+            }
+            return info;
+        }
+
 
         async function identifyPlantFromImage() {
             playClickSound();
@@ -531,8 +676,7 @@
             statusMessage.textContent = 'Detecting disease...';
             [identifyImageBtn, detectDiseaseBtn, searchPlantByNameBtn].forEach(btn => btn.disabled = true);
             try {
-                // *** CHANGED: The URL now points to your backend proxy under /api/user/ ***
-                const response = await fetch(`${BACKEND_API_BASE_URL}/api/user/plant-disease`, { method: 'POST', body: formData });
+                const response = await fetch(`${BACKEND_API_BASE_URL}/api/plant-disease`, { method: 'POST', body: formData });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.message || 'Detection failed');
                 renderDiseaseResults(result);
@@ -587,6 +731,14 @@
             detailView.classList.add('hidden');
             mainView.classList.remove('hidden');
         });
+        // New modal listeners
+        modalCloseBtn.addEventListener('click', () => treatmentModal.classList.add('hidden'));
+        treatmentModal.addEventListener('click', (e) => {
+            if (e.target === treatmentModal) {
+                treatmentModal.classList.add('hidden');
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
             statusMessage.textContent = 'Upload an image or enter a name to identify plants!';
         });
