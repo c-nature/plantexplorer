@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Plant Explorer</title>
+    <title>Plant Explorer & Disease Detector</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;700&family=Lora:wght@400;700&display=swap" rel="stylesheet">
@@ -21,6 +21,34 @@
             overflow-y: auto;
             overflow-x: hidden;
         }
+        .main-nav {
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+        .nav-button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: transparent;
+            color: #4A6B5B;
+        }
+        .nav-button.active {
+            background-color: #6B8E23;
+            color: white;
+            border-color: #4A6B5B;
+        }
+        .nav-button:not(.active):hover {
+            background-color: rgba(74, 107, 91, 0.1);
+        }
         .container {
             background-color: rgba(255, 255, 255, 0.85);
             border-radius: 1.5rem;
@@ -29,7 +57,6 @@
             width: 100%;
             max-width: 900px;
             text-align: center;
-            margin-top: 2rem;
             margin-bottom: 2rem;
             border: 2px solid #6B8E23;
         }
@@ -126,11 +153,6 @@
             margin-bottom: 0.25rem;
             font-weight: bold;
         }
-        .plant-detail {
-            font-size: 0.95rem;
-            color: #5A4F4A;
-            margin-bottom: 0.25rem;
-        }
         .message-box {
             position: fixed;
             top: 50%;
@@ -224,19 +246,6 @@
             color: #6B8E23;
             margin-bottom: 1rem;
         }
-        .detail-info-item {
-            display: flex;
-            align-items: flex-start;
-            margin-bottom: 0.75rem;
-            color: #5A4F4A;
-        }
-        .detail-info-item i {
-            margin-right: 0.75rem;
-            font-size: 1.2rem;
-            color: #4A6B5B;
-            width: 24px;
-            text-align: center;
-        }
         .gallery-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -256,6 +265,29 @@
         .gallery-grid img:hover {
             transform: scale(1.05);
         }
+        .disease-analysis-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+            text-align: left;
+        }
+        @media (min-width: 768px) {
+            .disease-analysis-container {
+                grid-template-columns: 300px 1fr;
+            }
+        }
+        .disease-result-box {
+            background-color: #F5F5DC;
+            border: 1px solid #A7D9B2;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            white-space: pre-wrap; /* To respect newlines from the API */
+            font-family: 'Lora', serif;
+            color: #5A4F4A;
+            height: 500px;
+            overflow-y: auto;
+        }
 
         @media (max-width: 768px) {
             body { padding: 1rem; }
@@ -267,8 +299,12 @@
     </style>
 </head>
 <body>
+    <nav class="main-nav">
+        <button id="nav-explorer" class="nav-button active">🌿 Plant Explorer</button>
+        <button id="nav-disease" class="nav-button">🔬 Disease Detector</button>
+    </nav>
 
-    <div id="main-view" class="container">
+    <div id="explorer-view" class="container">
         <h1 class="header-title">Plant Explorer</h1>
         <div class="mb-8">
             <h2 class="text-2xl font-bold text-[#4A6B5B] mb-4">Search by Name</h2>
@@ -289,7 +325,29 @@
             <img id="uploadedImagePreview" class="image-preview hidden" src="#" alt="Image Preview">
         </div>
         <div id="plantResults" class="results-grid"></div>
-        <p id="statusMessage" class="text-gray-600 mt-4"></p>
+        <p id="explorerStatusMessage" class="text-gray-600 mt-4"></p>
+    </div>
+
+    <div id="disease-view" class="container hidden">
+        <h1 class="header-title">AI Disease Detector</h1>
+        <p class="text-lg text-gray-700 mb-6">Upload an image of a plant leaf, and our AI pathologist will analyze it for diseases.</p>
+        <div class="disease-analysis-container">
+            <div class="flex flex-col items-center gap-4">
+                <label for="diseaseImageUpload" class="image-upload-input w-full">
+                    <i class="fas fa-cloud-upload-alt mr-2"></i> Click to upload an image
+                </label>
+                <input type="file" id="diseaseImageUpload" accept="image/*" class="hidden">
+                <button id="detectDiseaseBtn" class="search-button w-full">Analyze with AI</button>
+                <img id="diseaseImagePreview" class="image-preview hidden" src="#" alt="Disease Image Preview">
+            </div>
+            <div>
+                <h3 class="text-2xl font-bold text-left text-[#4A6B5B] mb-2">AI Pathologist Analysis</h3>
+                <div id="diseaseResultBox" class="disease-result-box">
+                    Your analysis will appear here...
+                </div>
+                 <p id="diseaseStatusMessage" class="text-gray-600 mt-2 text-left"></p>
+            </div>
+        </div>
     </div>
 
     <div id="detail-view" class="hidden detail-container">
@@ -317,16 +375,27 @@
 
     <script>
         // --- Element References ---
+        const navExplorer = document.getElementById('nav-explorer');
+        const navDisease = document.getElementById('nav-disease');
+        const explorerView = document.getElementById('explorer-view');
+        const diseaseView = document.getElementById('disease-view');
+        
         const plantNameSearchInput = document.getElementById('plantNameSearchInput');
         const searchPlantByNameBtn = document.getElementById('searchPlantByNameBtn');
         const imageUploadInput = document.getElementById('imageUploadInput');
         const identifyImageBtn = document.getElementById('identifyImageBtn');
         const uploadedImagePreview = document.getElementById('uploadedImagePreview');
         const plantResults = document.getElementById('plantResults');
-        const statusMessage = document.getElementById('statusMessage');
+        const explorerStatusMessage = document.getElementById('explorerStatusMessage');
+        
+        const diseaseImageUpload = document.getElementById('diseaseImageUpload');
+        const detectDiseaseBtn = document.getElementById('detectDiseaseBtn');
+        const diseaseImagePreview = document.getElementById('diseaseImagePreview');
+        const diseaseResultBox = document.getElementById('diseaseResultBox');
+        const diseaseStatusMessage = document.getElementById('diseaseStatusMessage');
+
         const messageBox = document.getElementById('messageBox');
         const mainClickSoundElement = document.getElementById('mainClickSoundElement');
-        const mainView = document.getElementById('main-view');
         const detailView = document.getElementById('detail-view');
         const backBtn = document.getElementById('back-btn');
         const detailTitle = document.getElementById('detail-title');
@@ -355,7 +424,23 @@
             setTimeout(() => messageBox.classList.remove('show'), duration);
         }
         
-        // Simplified Wikipedia fetch for brevity
+        // --- Navigation ---
+        function showView(viewToShow) {
+            [explorerView, diseaseView, detailView].forEach(view => view.classList.add('hidden'));
+            viewToShow.classList.remove('hidden');
+
+            [navExplorer, navDisease].forEach(btn => btn.classList.remove('active'));
+            if (viewToShow === explorerView || viewToShow === detailView) {
+                navExplorer.classList.add('active');
+            } else if (viewToShow === diseaseView) {
+                navDisease.classList.add('active');
+            }
+        }
+
+        navExplorer.addEventListener('click', () => showView(explorerView));
+        navDisease.addEventListener('click', () => showView(diseaseView));
+
+        // --- Wikipedia and Image Fetching (Plant Explorer) ---
         async function fetchWikipediaPlantDetails(plantName) {
             const url = `${wikipediaApiUrl}&prop=extracts&exintro=1&explaintext=1&redirects=1&titles=${encodeURIComponent(plantName)}`;
             try {
@@ -401,13 +486,14 @@
             return [];
         }
 
+        // --- UI Rendering (Plant Explorer) ---
         async function renderPlantCards(plants, isIdentificationResult = false) {
             plantResults.innerHTML = '';
             if (!plants || plants.length === 0) {
-                statusMessage.textContent = `No plants found.`;
+                explorerStatusMessage.textContent = `No plants found.`;
                 return;
             }
-            statusMessage.textContent = `Found ${plants.length} results.`;
+            explorerStatusMessage.textContent = `Found ${plants.length} results.`;
             const cards = await Promise.all(plants.map(async (plant) => {
                 const card = document.createElement('div');
                 card.className = 'plant-card';
@@ -433,8 +519,7 @@
         }
 
         async function showDetailView(plant) {
-            mainView.classList.add('hidden');
-            detailView.classList.remove('hidden');
+            showView(detailView);
             const displayName = plant.commonName && plant.commonName !== 'N/A' ? plant.commonName : plant.scientificName;
             detailTitle.textContent = displayName;
             galleryLoader.classList.remove('hidden');
@@ -462,14 +547,16 @@
             });
         }
 
+        // --- Core Logic (Plant Explorer) ---
         async function identifyPlantFromImage() {
             playClickSound();
             if (!imageUploadInput.files.length) return showMessageBox('Please select an image file.');
             const formData = new FormData();
             formData.append('image', imageUploadInput.files[0]);
-            statusMessage.textContent = 'Identifying plant...';
+            explorerStatusMessage.textContent = 'Identifying plant...';
             [identifyImageBtn, searchPlantByNameBtn].forEach(btn => btn.disabled = true);
             try {
+                // CORRECTED ENDPOINT
                 const response = await fetch(`${BACKEND_API_BASE_URL}/api/user/plant/identify`, { method: 'POST', body: formData });
                 const data = await response.json();
                 if (!response.ok || data.status !== 'Success') throw new Error(data.message || 'Identification failed');
@@ -481,10 +568,10 @@
                     }));
                     renderPlantCards(lastPlantSearchResults, true);
                 } else {
-                    statusMessage.textContent = 'No confident identification found.';
+                    explorerStatusMessage.textContent = 'No confident identification found.';
                 }
             } catch (error) {
-                statusMessage.textContent = `Error: ${error.message}`;
+                explorerStatusMessage.textContent = `Error: ${error.message}`;
             } finally {
                 [identifyImageBtn, searchPlantByNameBtn].forEach(btn => btn.disabled = false);
             }
@@ -494,7 +581,7 @@
             playClickSound();
             const plantName = plantNameSearchInput.value.trim();
             if (!plantName) return showMessageBox('Please enter a plant name.');
-            statusMessage.textContent = `Searching for "${plantName}"...`;
+            explorerStatusMessage.textContent = `Searching for "${plantName}"...`;
             [identifyImageBtn, searchPlantByNameBtn].forEach(btn => btn.disabled = true);
             try {
                 const wikiDetails = await fetchWikipediaPlantDetails(plantName);
@@ -502,12 +589,63 @@
                     lastPlantSearchResults = [wikiDetails];
                     renderPlantCards(lastPlantSearchResults, false);
                 } else {
-                    statusMessage.textContent = `No information found for "${plantName}".`;
+                    explorerStatusMessage.textContent = `No information found for "${plantName}".`;
                 }
             } catch (error) {
-                statusMessage.textContent = `Error: ${error.message}`;
+                explorerStatusMessage.textContent = `Error: ${error.message}`;
             } finally {
                 [identifyImageBtn, searchPlantByNameBtn].forEach(btn => btn.disabled = false);
+            }
+        }
+
+        // --- Core Logic (Disease Detector) ---
+        async function analyzeDiseaseWithBackend() {
+            playClickSound();
+            if (!diseaseImageUpload.files.length) {
+                return showMessageBox('Please upload an image for analysis.');
+            }
+
+            const file = diseaseImageUpload.files[0];
+            const formData = new FormData();
+            formData.append('image', file);
+
+            diseaseStatusMessage.textContent = 'Analyzing image with AI...';
+            diseaseResultBox.textContent = '';
+            detectDiseaseBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${BACKEND_API_BASE_URL}/api/plant-disease`, {
+                    method: 'POST',
+                    body: formData // Send form data directly
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.json();
+                    throw new Error(errorBody.message || `API Error: ${response.statusText}`);
+                }
+
+                const results = await response.json();
+                
+                if (Array.isArray(results) && results.length > 0) {
+                    let formattedResults = "Analysis Complete. Possible Detections:\n\n";
+                    results.forEach(result => {
+                        const label = result.label.replace(/__/g, ' - ').replace(/_/g, ' ');
+                        const score = (result.score * 100).toFixed(2);
+                        formattedResults += `- ${label}: ${score}% confidence\n`;
+                    });
+                    diseaseResultBox.textContent = formattedResults;
+                    diseaseStatusMessage.textContent = 'Analysis complete.';
+                } else {
+                    diseaseResultBox.textContent = "Could not identify any diseases from the image.";
+                    diseaseStatusMessage.textContent = 'Analysis complete.';
+                }
+
+            } catch (error) {
+                console.error("Backend API Error:", error);
+                diseaseResultBox.textContent = `An error occurred during analysis: ${error.message}`;
+                diseaseStatusMessage.textContent = 'Analysis failed.';
+            } finally {
+                detectDiseaseBtn.disabled = false;
             }
         }
 
@@ -522,19 +660,34 @@
                 };
                 reader.readAsDataURL(imageUploadInput.files[0]);
                 plantResults.innerHTML = '';
-                statusMessage.textContent = 'Image selected. Click "Identify Plant".';
+                explorerStatusMessage.textContent = 'Image selected. Click "Identify Plant".';
             }
         });
         searchPlantByNameBtn.addEventListener('click', searchPlantsByName);
         plantNameSearchInput.addEventListener('keyup', (e) => e.key === 'Enter' && searchPlantsByName());
         backBtn.addEventListener('click', () => {
             playClickSound();
-            detailView.classList.add('hidden');
-            mainView.classList.remove('hidden');
+            showView(explorerView);
+        });
+
+        // Disease Detector Listeners
+        detectDiseaseBtn.addEventListener('click', analyzeDiseaseWithBackend); // UPDATED
+        diseaseImageUpload.addEventListener('change', () => {
+            if (diseaseImageUpload.files.length) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    diseaseImagePreview.src = e.target.result;
+                    diseaseImagePreview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(diseaseImageUpload.files[0]);
+                diseaseResultBox.textContent = 'Image selected. Click "Analyze with AI".';
+                diseaseStatusMessage.textContent = '';
+            }
         });
 
         document.addEventListener('DOMContentLoaded', () => {
-            statusMessage.textContent = 'Upload an image or enter a name to identify plants!';
+            explorerStatusMessage.textContent = 'Upload an image or enter a name to identify plants!';
+            showView(explorerView); // Start on the explorer view
         });
     </script>
 </body>
