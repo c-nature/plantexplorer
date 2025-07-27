@@ -305,6 +305,7 @@
         <button id="nav-explorer" class="nav-button active">🌿 Plant Explorer</button>
         <button id="nav-disease" class="nav-button">🔬 Disease Detector</button>
         <button id="nav-collection" class="nav-button">📚 My Collection</button>
+        <button id="nav-logout" class="nav-button hidden">🚪 Logout</button>
     </nav>
 
     <div id="explorer-view" class="container">
@@ -348,7 +349,7 @@
                 <div id="diseaseResultBox" class="disease-result-box">
                     Your analysis will appear here...
                 </div>
-                 <p id="diseaseStatusMessage" class="text-gray-600 mt-2 text-left"></p>
+                   <p id="diseaseStatusMessage" class="text-gray-600 mt-2 text-left"></p>
             </div>
         </div>
     </div>
@@ -363,9 +364,9 @@
         <header class="detail-header">
             <h2 id="detail-title" class="detail-title"></h2>
             <div class="flex gap-4">
-                 <button id="addToCollectionBtn" class="search-button">
-                    <i class="fas fa-plus mr-2"></i> Add to Collection
-                </button>
+                   <button id="addToCollectionBtn" class="search-button">
+                     <i class="fas fa-plus mr-2"></i> Add to Collection
+                 </button>
                 <button id="back-btn" class="search-button">
                     <i class="fas fa-arrow-left mr-2"></i> Back
                 </button>
@@ -392,6 +393,8 @@
         const navExplorer = document.getElementById('nav-explorer');
         const navDisease = document.getElementById('nav-disease');
         const navCollection = document.getElementById('nav-collection');
+        const navLogout = document.getElementById('nav-logout');
+
         const explorerView = document.getElementById('explorer-view');
         const diseaseView = document.getElementById('disease-view');
         const collectionView = document.getElementById('collection-view');
@@ -426,6 +429,7 @@
         // --- State ---
         let lastPlantSearchResults = [];
         let currentDetailPlant = null; // To hold the plant data for the detail view
+        let currentUser = null; // To store logged-in user data
 
         // --- API Configuration ---
         const BACKEND_API_BASE_URL = 'https://smartypantsbe.onrender.com';
@@ -451,6 +455,7 @@
             viewToShow.classList.remove('hidden');
 
             [navExplorer, navDisease, navCollection].forEach(btn => btn.classList.remove('active'));
+            
             if (viewToShow === explorerView) {
                 navExplorer.classList.add('active');
             } else if (viewToShow === diseaseView) {
@@ -458,14 +463,52 @@
             } else if (viewToShow === collectionView) {
                 navCollection.classList.add('active');
             }
+            updateNavigationUI(); // Ensure nav buttons are always updated
+        }
+
+        function updateNavigationUI() {
+            if (currentUser && currentUser._id) {
+                navCollection.classList.remove('hidden');
+                navLogout.classList.remove('hidden');
+                addToCollectionBtn.classList.remove('hidden'); // Show "Add to Collection"
+            } else {
+                navCollection.classList.add('hidden');
+                navLogout.classList.add('hidden');
+                addToCollectionBtn.classList.add('hidden'); // Hide "Add to Collection"
+            }
         }
 
         navExplorer.addEventListener('click', () => showView(explorerView));
         navDisease.addEventListener('click', () => showView(diseaseView));
         navCollection.addEventListener('click', () => {
-            showView(collectionView);
-            fetchUserCollection();
+            if (currentUser && currentUser._id) {
+                showView(collectionView);
+                fetchUserCollection();
+            } else {
+                showMessageBox("Please log in on the main SmartyPants website to view your Plant Collection.");
+            }
         });
+        navLogout.addEventListener('click', logoutUser);
+
+        // --- Authentication Logic (Simplified for SSO) ---
+        function logoutUser() {
+            playClickSound();
+            localStorage.removeItem('user'); // Clear the entire user object
+            localStorage.removeItem('token'); // Clear the token if stored separately
+            currentUser = null;
+            showMessageBox("Logged out successfully. Please log in on the main SmartyPants website to access full features.");
+            updateNavigationUI();
+            showView(explorerView); // Redirect to explorer after logout
+            // Clear content from other views
+            plantResults.innerHTML = '';
+            explorerStatusMessage.textContent = 'Upload an image or enter a name to identify plants!';
+            diseaseResultBox.textContent = 'Your analysis will appear here...';
+            diseaseStatusMessage.textContent = '';
+            collectionGrid.innerHTML = '';
+            collectionStatusMessage.textContent = '';
+            uploadedImagePreview.classList.add('hidden');
+            diseaseImagePreview.classList.add('hidden');
+        }
 
         // --- Wikipedia and Image Fetching (Plant Explorer) ---
         async function fetchWikipediaPlantDetails(plantName) {
@@ -482,7 +525,7 @@
                         family: 'N/A',
                         genus: 'N/A',
                         characteristics: { description: page.extract || 'No description.' },
-                        wikipedia_url: page.fullurl
+                        wikipedia_url: `https://en.wikipedia.org/wiki/${encodeURIComponent(plantName)}` // Construct full Wikipedia URL
                     };
                 }
             } catch (error) { console.error("Wiki fetch error:", error); }
@@ -688,14 +731,25 @@
         // --- Core Logic (Collection) ---
         let userPlantCollection = [];
 
+        // Function to get the user ID from localStorage
+        const getUserId = () => {
+            const user = JSON.parse(localStorage.getItem('user'));
+            return user ? user._id : null;
+        };
+
         async function fetchUserCollection() {
-            // Replace 'DUMMY_USER_ID' with actual logged-in user ID
-            const userId = "DUMMY_USER_ID"; 
+            const userId = getUserId();
+            if (!userId) {
+                collectionStatusMessage.textContent = "Please log in on the main SmartyPants website to fetch your collection.";
+                collectionGrid.innerHTML = ''; // Clear previous results
+                return;
+            }
             collectionStatusMessage.textContent = "Fetching your collection...";
             try {
                 const response = await fetch(`${BACKEND_API_BASE_URL}/api/user/collection/${userId}`);
                 if (!response.ok) {
-                    throw new Error('Could not fetch collection.');
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Could not fetch collection.');
                 }
                 const data = await response.json();
                 if (data.status === 'Success') {
@@ -705,7 +759,8 @@
                     throw new Error(data.message);
                 }
             } catch (error) {
-                collectionStatusMessage.textContent = `Error: ${error.message}`;
+                console.error("Error fetching collection:", error);
+                collectionStatusMessage.textContent = `Error fetching collection: ${error.message}`;
             }
         }
 
@@ -714,8 +769,11 @@
                 showMessageBox("No plant selected to add.");
                 return;
             }
-             // Replace 'DUMMY_USER_ID' with actual logged-in user ID
-            const userId = "DUMMY_USER_ID";
+            const userId = getUserId();
+            if (!userId) {
+                showMessageBox("Please log in on the main SmartyPants website to add to collection.");
+                return;
+            }
 
             try {
                 const response = await fetch(`${BACKEND_API_BASE_URL}/api/user/collection/add`, {
@@ -729,11 +787,16 @@
                 const result = await response.json();
                 if (result.status === 'Success') {
                     showMessageBox("Plant added to your collection!");
+                    // Optionally refresh collection view if currently on it
+                    if (!collectionView.classList.contains('hidden')) {
+                        fetchUserCollection();
+                    }
                 } else {
                     throw new Error(result.message);
                 }
             } catch (error) {
-                showMessageBox(`Error: ${error.message}`);
+                console.error("Error adding plant to collection:", error);
+                showMessageBox(`Error adding plant: ${error.message}`);
             }
         }
 
@@ -756,7 +819,8 @@
         plantNameSearchInput.addEventListener('keyup', (e) => e.key === 'Enter' && searchPlantsByName());
         backBtn.addEventListener('click', () => {
             playClickSound();
-            if (document.referrer.includes('collection')) { // A simple way to check where user came from
+            // A simple way to check where user came from, though a more robust routing solution is ideal
+            if (document.referrer.includes('collection') || !collectionView.classList.contains('hidden')) { 
                  showView(collectionView);
             } else {
                  showView(explorerView);
@@ -781,8 +845,14 @@
         });
 
         document.addEventListener('DOMContentLoaded', () => {
-            explorerStatusMessage.textContent = 'Upload an image or enter a name to identify plants!';
+            // Check for existing user session on load
+            const storedUser = localStorage.getItem('user');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+            }
+            updateNavigationUI(); // Update nav buttons based on login status
             showView(explorerView); // Start on the explorer view
+            explorerStatusMessage.textContent = 'Upload an image or enter a name to identify plants!';
         });
     </script>
 </body>
