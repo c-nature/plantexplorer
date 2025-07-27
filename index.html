@@ -222,6 +222,8 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
         .detail-title {
             font-family: 'Cormorant Garamond', serif;
@@ -302,6 +304,7 @@
     <nav class="main-nav">
         <button id="nav-explorer" class="nav-button active">🌿 Plant Explorer</button>
         <button id="nav-disease" class="nav-button">🔬 Disease Detector</button>
+        <button id="nav-collection" class="nav-button">📚 My Collection</button>
     </nav>
 
     <div id="explorer-view" class="container">
@@ -350,12 +353,23 @@
         </div>
     </div>
 
+    <div id="collection-view" class="container hidden">
+        <h1 class="header-title">My Plant Collection</h1>
+        <div id="collection-grid" class="results-grid"></div>
+        <p id="collectionStatusMessage" class="text-gray-600 mt-4"></p>
+    </div>
+
     <div id="detail-view" class="hidden detail-container">
         <header class="detail-header">
             <h2 id="detail-title" class="detail-title"></h2>
-            <button id="back-btn" class="search-button">
-                <i class="fas fa-arrow-left mr-2"></i> Back to Results
-            </button>
+            <div class="flex gap-4">
+                 <button id="addToCollectionBtn" class="search-button">
+                    <i class="fas fa-plus mr-2"></i> Add to Collection
+                </button>
+                <button id="back-btn" class="search-button">
+                    <i class="fas fa-arrow-left mr-2"></i> Back
+                </button>
+            </div>
         </header>
         <div id="detail-content" class="detail-content-grid"></div>
         <div class="mt-8">
@@ -377,8 +391,10 @@
         // --- Element References ---
         const navExplorer = document.getElementById('nav-explorer');
         const navDisease = document.getElementById('nav-disease');
+        const navCollection = document.getElementById('nav-collection');
         const explorerView = document.getElementById('explorer-view');
         const diseaseView = document.getElementById('disease-view');
+        const collectionView = document.getElementById('collection-view');
         
         const plantNameSearchInput = document.getElementById('plantNameSearchInput');
         const searchPlantByNameBtn = document.getElementById('searchPlantByNameBtn');
@@ -394,10 +410,14 @@
         const diseaseResultBox = document.getElementById('diseaseResultBox');
         const diseaseStatusMessage = document.getElementById('diseaseStatusMessage');
 
+        const collectionGrid = document.getElementById('collection-grid');
+        const collectionStatusMessage = document.getElementById('collectionStatusMessage');
+
         const messageBox = document.getElementById('messageBox');
         const mainClickSoundElement = document.getElementById('mainClickSoundElement');
         const detailView = document.getElementById('detail-view');
         const backBtn = document.getElementById('back-btn');
+        const addToCollectionBtn = document.getElementById('addToCollectionBtn');
         const detailTitle = document.getElementById('detail-title');
         const detailContent = document.getElementById('detail-content');
         const galleryGrid = document.getElementById('gallery-grid');
@@ -405,6 +425,7 @@
 
         // --- State ---
         let lastPlantSearchResults = [];
+        let currentDetailPlant = null; // To hold the plant data for the detail view
 
         // --- API Configuration ---
         const BACKEND_API_BASE_URL = 'https://smartypantsbe.onrender.com';
@@ -426,19 +447,25 @@
         
         // --- Navigation ---
         function showView(viewToShow) {
-            [explorerView, diseaseView, detailView].forEach(view => view.classList.add('hidden'));
+            [explorerView, diseaseView, detailView, collectionView].forEach(view => view.classList.add('hidden'));
             viewToShow.classList.remove('hidden');
 
-            [navExplorer, navDisease].forEach(btn => btn.classList.remove('active'));
-            if (viewToShow === explorerView || viewToShow === detailView) {
+            [navExplorer, navDisease, navCollection].forEach(btn => btn.classList.remove('active'));
+            if (viewToShow === explorerView) {
                 navExplorer.classList.add('active');
             } else if (viewToShow === diseaseView) {
                 navDisease.classList.add('active');
+            } else if (viewToShow === collectionView) {
+                navCollection.classList.add('active');
             }
         }
 
         navExplorer.addEventListener('click', () => showView(explorerView));
         navDisease.addEventListener('click', () => showView(diseaseView));
+        navCollection.addEventListener('click', () => {
+            showView(collectionView);
+            fetchUserCollection();
+        });
 
         // --- Wikipedia and Image Fetching (Plant Explorer) ---
         async function fetchWikipediaPlantDetails(plantName) {
@@ -486,49 +513,66 @@
             return [];
         }
 
-        // --- UI Rendering (Plant Explorer) ---
-        async function renderPlantCards(plants, isIdentificationResult = false) {
-            plantResults.innerHTML = '';
+        // --- UI Rendering (Plant Explorer & Collection) ---
+        async function renderPlantCards(plants, container, isIdentificationResult = false) {
+            container.innerHTML = '';
             if (!plants || plants.length === 0) {
-                explorerStatusMessage.textContent = `No plants found.`;
+                if(container === plantResults) explorerStatusMessage.textContent = `No plants found.`;
+                if(container === collectionGrid) collectionStatusMessage.textContent = `Your collection is empty.`;
                 return;
             }
-            explorerStatusMessage.textContent = `Found ${plants.length} results.`;
+             if(container === plantResults) explorerStatusMessage.textContent = `Found ${plants.length} results.`;
+             if(container === collectionGrid) collectionStatusMessage.textContent = `You have ${plants.length} plants in your collection.`;
+
+
             const cards = await Promise.all(plants.map(async (plant) => {
                 const card = document.createElement('div');
                 card.className = 'plant-card';
-                card.dataset.plantScientificName = plant.scientificName;
-                const nameForImageSearch = (plant.commonName && plant.commonName.toLowerCase() !== 'n/a') ? plant.commonName : plant.scientificName;
-                plant.imageUrl = await fetchPlantImage(nameForImageSearch);
+                // Use a unique identifier if available, otherwise combine names
+                card.dataset.plantId = plant.scientificName || plant.commonName;
+                
+                // For new searches, fetch image. For collection, use stored imageUrl.
+                const imageUrl = plant.imageUrl || await fetchPlantImage(plant.commonName || plant.scientificName);
+                plant.imageUrl = imageUrl; // Ensure it's stored for detail view
+
                 card.innerHTML = `
-                    <img src="${plant.imageUrl || 'https://placehold.co/200x200/cccccc/000000?text=No+Image'}" alt="${plant.commonName || plant.scientificName}" class="plant-image">
+                    <img src="${imageUrl || 'https://placehold.co/200x200/cccccc/000000?text=No+Image'}" alt="${plant.commonName || plant.scientificName}" class="plant-image">
                     <h3 class="plant-name">${plant.commonName || 'N/A'}</h3>
                     <p class="plant-scientific">${plant.scientificName || 'N/A'}</p>
                     ${isIdentificationResult && plant.score ? `<p class="plant-score">Confidence: ${(plant.score * 100).toFixed(2)}%</p>` : ''}
                 `;
                 return card;
             }));
-            cards.forEach(card => plantResults.appendChild(card));
-            document.querySelectorAll('.plant-card').forEach(card => {
+
+            cards.forEach(card => container.appendChild(card));
+
+            container.querySelectorAll('.plant-card').forEach(card => {
                 card.addEventListener('click', () => {
                     playClickSound();
-                    const plantData = lastPlantSearchResults.find(p => p.scientificName === card.dataset.plantScientificName);
+                    const plantData = (container === plantResults ? lastPlantSearchResults : userPlantCollection).find(p => (p.scientificName || p.commonName) === card.dataset.plantId);
                     if (plantData) showDetailView(plantData);
                 });
             });
         }
 
+
         async function showDetailView(plant) {
+            currentDetailPlant = plant; // Store the current plant's data
             showView(detailView);
             const displayName = plant.commonName && plant.commonName !== 'N/A' ? plant.commonName : plant.scientificName;
             detailTitle.textContent = displayName;
             galleryLoader.classList.remove('hidden');
             galleryGrid.innerHTML = '';
             const mainImageSrc = plant.imageUrl || 'https://placehold.co/400x300/cccccc/000000?text=No+Image';
+            
+            const description = (plant.characteristics && plant.characteristics.description) 
+                ? plant.characteristics.description 
+                : 'No description available.';
+
             detailContent.innerHTML = `
                 <div>
                     <a href="${mainImageSrc}" target="_blank" rel="noopener noreferrer"><img src="${mainImageSrc}" alt="${displayName}" class="w-full h-auto object-cover rounded-lg shadow-md mb-4 cursor-pointer"></a>
-                    <p class="text-lg text-gray-700">${plant.characteristics.description}</p>
+                    <p class="text-lg text-gray-700">${description}</p>
                     ${plant.wikipedia_url ? `<a href="${plant.wikipedia_url}" target="_blank" class="text-blue-600 hover:underline mt-2 inline-block">Read more</a>` : ''}
                 </div>
                 <div><h3 class="detail-section-title">Details</h3></div>
@@ -565,7 +609,7 @@
                         const wikiDetails = await fetchWikipediaPlantDetails(searchName);
                         return wikiDetails ? { ...plant, ...wikiDetails, score: plant.score } : plant;
                     }));
-                    renderPlantCards(lastPlantSearchResults, true);
+                    renderPlantCards(lastPlantSearchResults, plantResults, true);
                 } else {
                     explorerStatusMessage.textContent = 'No confident identification found.';
                 }
@@ -586,7 +630,7 @@
                 const wikiDetails = await fetchWikipediaPlantDetails(plantName);
                 if (wikiDetails) {
                     lastPlantSearchResults = [wikiDetails];
-                    renderPlantCards(lastPlantSearchResults, false);
+                    renderPlantCards(lastPlantSearchResults, plantResults, false);
                 } else {
                     explorerStatusMessage.textContent = `No information found for "${plantName}".`;
                 }
@@ -598,103 +642,101 @@
         }
 
         // --- Core Logic (Disease Detector) ---
-        const diseasePrompt = `
-As a highly skilled plant pathologist, your expertise is indispensable in our pursuit of maintaining optimal plant health. You will be provided with information or samples related to plant diseases, and your role involves conducting a detailed analysis to identify the specific issues, propose solutions, and offer recommendations.
-
-**Analysis Guidelines:**
-
-1. **Disease Identification:** Examine the provided information or samples to identify and characterize plant diseases accurately.
-
-2. **Detailed Findings:** Provide in-depth findings on the nature and extent of the identified plant diseases, including affected plant parts, symptoms, and potential causes.
-
-3. **Next Steps:** Outline the recommended course of action for managing and controlling the identified plant diseases. This may involve treatment options, preventive measures, or further investigations.
-
-4. **Recommendations:** Offer informed recommendations for maintaining plant health, preventing disease spread, and optimizing overall plant well-being.
-
-5. **Important Note:** As a plant pathologist, your insights are vital for informed decision-making in agriculture and plant management. Your response should be thorough, concise, and focused on plant health.
-
-**Disclaimer:**
-*"Please note that the information provided is based on plant pathology analysis and should not replace professional agricultural advice. Consult with qualified agricultural experts before implementing any strategies or treatments."*
-
-Your role is pivotal in ensuring the health and productivity of plants. Proceed to analyze the provided information or samples, adhering to the structured format.
-`;
-
-        async function analyzeDiseaseWithGemini() {
+        async function analyzeDiseaseWithBackend() {
             playClickSound();
             if (!diseaseImageUpload.files.length) {
                 return showMessageBox('Please upload an image for analysis.');
             }
 
             const file = diseaseImageUpload.files[0];
+            const formData = new FormData();
+            formData.append('image', file);
+
             diseaseStatusMessage.textContent = 'Analyzing image with AI...';
             diseaseResultBox.textContent = '';
             detectDiseaseBtn.disabled = true;
 
-            // Convert image to base64
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async () => {
-                const base64ImageData = reader.result.split(',')[1];
+            try {
+                const response = await fetch(`${BACKEND_API_BASE_URL}/api/google-plant/disease-detect`, {
+                    method: 'POST',
+                    body: formData
+                });
 
-                const payload = {
-                    contents: [
-                        {
-                            role: "user",
-                            parts: [
-                                { text: diseasePrompt },
-                                {
-                                    inlineData: {
-                                        mimeType: file.type,
-                                        data: base64ImageData
-                                    }
-                                }
-                            ]
-                        }
-                    ],
-                };
-                
-                const apiKey = ""; // Leave empty, handled by environment
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) {
-                        const errorBody = await response.json();
-                        throw new Error(`API Error: ${errorBody.error.message}`);
-                    }
-
-                    const result = await response.json();
-                    
-                    if (result.candidates && result.candidates.length > 0 &&
-                        result.candidates[0].content && result.candidates[0].content.parts &&
-                        result.candidates[0].content.parts.length > 0) {
-                        const text = result.candidates[0].content.parts[0].text;
-                        diseaseResultBox.textContent = text;
-                        diseaseStatusMessage.textContent = 'Analysis complete.';
-                    } else {
-                        throw new Error('Invalid response structure from API.');
-                    }
-
-                } catch (error) {
-                    console.error("Gemini API Error:", error);
-                    diseaseResultBox.textContent = `An error occurred during analysis: ${error.message}`;
-                    diseaseStatusMessage.textContent = 'Analysis failed.';
-                } finally {
-                    detectDiseaseBtn.disabled = false;
+                if (!response.ok) {
+                    const errorBody = await response.json();
+                    throw new Error(errorBody.message || `API Error: ${response.statusText}`);
                 }
-            };
-            reader.onerror = (error) => {
-                console.error("File Reader Error:", error);
-                showMessageBox('Could not read the image file.');
-                diseaseStatusMessage.textContent = 'Error reading file.';
+
+                const result = await response.json();
+                
+                if (result.analysis) {
+                    diseaseResultBox.textContent = result.analysis;
+                    diseaseStatusMessage.textContent = 'Analysis complete.';
+                } else {
+                    throw new Error('Invalid response structure from backend.');
+                }
+
+            } catch (error) {
+                console.error("Backend API Error:", error);
+                diseaseResultBox.textContent = `An error occurred during analysis: ${error.message}`;
+                diseaseStatusMessage.textContent = 'Analysis failed.';
+            } finally {
                 detectDiseaseBtn.disabled = false;
-            };
+            }
         }
+
+        // --- Core Logic (Collection) ---
+        let userPlantCollection = [];
+
+        async function fetchUserCollection() {
+            // Replace 'DUMMY_USER_ID' with actual logged-in user ID
+            const userId = "DUMMY_USER_ID"; 
+            collectionStatusMessage.textContent = "Fetching your collection...";
+            try {
+                const response = await fetch(`${BACKEND_API_BASE_URL}/api/user/collection/${userId}`);
+                if (!response.ok) {
+                    throw new Error('Could not fetch collection.');
+                }
+                const data = await response.json();
+                if (data.status === 'Success') {
+                    userPlantCollection = data.data;
+                    renderPlantCards(userPlantCollection, collectionGrid);
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                collectionStatusMessage.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function addPlantToCollection() {
+            if (!currentDetailPlant) {
+                showMessageBox("No plant selected to add.");
+                return;
+            }
+             // Replace 'DUMMY_USER_ID' with actual logged-in user ID
+            const userId = "DUMMY_USER_ID";
+
+            try {
+                const response = await fetch(`${BACKEND_API_BASE_URL}/api/user/collection/add`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: userId,
+                        plantData: currentDetailPlant
+                    })
+                });
+                const result = await response.json();
+                if (result.status === 'Success') {
+                    showMessageBox("Plant added to your collection!");
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                showMessageBox(`Error: ${error.message}`);
+            }
+        }
+
 
         // --- Event Listeners ---
         identifyImageBtn.addEventListener('click', identifyPlantFromImage);
@@ -714,11 +756,17 @@ Your role is pivotal in ensuring the health and productivity of plants. Proceed 
         plantNameSearchInput.addEventListener('keyup', (e) => e.key === 'Enter' && searchPlantsByName());
         backBtn.addEventListener('click', () => {
             playClickSound();
-            showView(explorerView);
+            if (document.referrer.includes('collection')) { // A simple way to check where user came from
+                 showView(collectionView);
+            } else {
+                 showView(explorerView);
+            }
         });
+        addToCollectionBtn.addEventListener('click', addPlantToCollection);
+
 
         // Disease Detector Listeners
-        detectDiseaseBtn.addEventListener('click', analyzeDiseaseWithGemini);
+        detectDiseaseBtn.addEventListener('click', analyzeDiseaseWithBackend);
         diseaseImageUpload.addEventListener('change', () => {
             if (diseaseImageUpload.files.length) {
                 const reader = new FileReader();
