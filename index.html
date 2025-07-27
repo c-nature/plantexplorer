@@ -420,7 +420,7 @@
         const mainClickSoundElement = document.getElementById('mainClickSoundElement');
         const detailView = document.getElementById('detail-view');
         const backBtn = document.getElementById('back-btn');
-        const addToCollectionBtn = document.getElementById('addToCollectionBtn');
+        const addToCollectionBtn = document.getElementById('addToCollection');
         const detailTitle = document.getElementById('detail-title');
         const detailContent = document.getElementById('detail-content');
         const galleryGrid = document.getElementById('gallery-grid');
@@ -528,7 +528,7 @@
                         wikipedia_url: `https://en.wikipedia.org/wiki/${encodeURIComponent(plantName)}` // Construct full Wikipedia URL
                     };
                 }
-            } catch (error) { console.error("Wiki fetch error:", error); }
+            } catch (error) { console.                console.error("Wiki fetch error:", error); }
             return null;
         }
 
@@ -653,6 +653,12 @@
                         return wikiDetails ? { ...plant, ...wikiDetails, score: plant.score } : plant;
                     }));
                     renderPlantCards(lastPlantSearchResults, plantResults, true);
+
+                    // NEW: Automatically add the top identified plant to the collection if user is logged in
+                    if (currentUser && lastPlantSearchResults.length > 0) {
+                        const topPlant = lastPlantSearchResults[0]; // Get the most confident identification
+                        addPlantToCollection(topPlant); // Call the modified addPlantToCollection
+                    }
                 } else {
                     explorerStatusMessage.textContent = 'No confident identification found.';
                 }
@@ -764,8 +770,9 @@
             }
         }
 
-        async function addPlantToCollection() {
-            if (!currentDetailPlant) {
+        async function addPlantToCollection(plantToAdd) { // Now accepts plantToAdd as an argument
+            const plantData = plantToAdd || currentDetailPlant; // Use argument if provided, else fallback to currentDetailPlant
+            if (!plantData) {
                 showMessageBox("No plant selected to add.");
                 return;
             }
@@ -781,12 +788,12 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         userId: userId,
-                        plantData: currentDetailPlant
+                        plantData: plantData // Use plantData here
                     })
                 });
                 const result = await response.json();
                 if (result.status === 'Success') {
-                    showMessageBox("Plant added to your collection!");
+                    showMessageBox(`Plant "${plantData.commonName || plantData.scientificName}" added to your collection!`); // More specific message
                     // Optionally refresh collection view if currently on it
                     if (!collectionView.classList.contains('hidden')) {
                         fetchUserCollection();
@@ -826,7 +833,7 @@
                  showView(explorerView);
             }
         });
-        addToCollectionBtn.addEventListener('click', addPlantToCollection);
+        addToCollectionBtn.addEventListener('click', () => addPlantToCollection()); // Call without argument for manual click
 
 
         // Disease Detector Listeners
