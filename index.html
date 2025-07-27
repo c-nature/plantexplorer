@@ -556,7 +556,6 @@
             explorerStatusMessage.textContent = 'Identifying plant...';
             [identifyImageBtn, searchPlantByNameBtn].forEach(btn => btn.disabled = true);
             try {
-                // CORRECTED ENDPOINT
                 const response = await fetch(`${BACKEND_API_BASE_URL}/api/user/plant/identify`, { method: 'POST', body: formData });
                 const data = await response.json();
                 if (!response.ok || data.status !== 'Success') throw new Error(data.message || 'Identification failed');
@@ -599,54 +598,102 @@
         }
 
         // --- Core Logic (Disease Detector) ---
-        async function analyzeDiseaseWithBackend() {
+        const diseasePrompt = `
+As a highly skilled plant pathologist, your expertise is indispensable in our pursuit of maintaining optimal plant health. You will be provided with information or samples related to plant diseases, and your role involves conducting a detailed analysis to identify the specific issues, propose solutions, and offer recommendations.
+
+**Analysis Guidelines:**
+
+1. **Disease Identification:** Examine the provided information or samples to identify and characterize plant diseases accurately.
+
+2. **Detailed Findings:** Provide in-depth findings on the nature and extent of the identified plant diseases, including affected plant parts, symptoms, and potential causes.
+
+3. **Next Steps:** Outline the recommended course of action for managing and controlling the identified plant diseases. This may involve treatment options, preventive measures, or further investigations.
+
+4. **Recommendations:** Offer informed recommendations for maintaining plant health, preventing disease spread, and optimizing overall plant well-being.
+
+5. **Important Note:** As a plant pathologist, your insights are vital for informed decision-making in agriculture and plant management. Your response should be thorough, concise, and focused on plant health.
+
+**Disclaimer:**
+*"Please note that the information provided is based on plant pathology analysis and should not replace professional agricultural advice. Consult with qualified agricultural experts before implementing any strategies or treatments."*
+
+Your role is pivotal in ensuring the health and productivity of plants. Proceed to analyze the provided information or samples, adhering to the structured format.
+`;
+
+        async function analyzeDiseaseWithGemini() {
             playClickSound();
             if (!diseaseImageUpload.files.length) {
                 return showMessageBox('Please upload an image for analysis.');
             }
 
             const file = diseaseImageUpload.files[0];
-            const formData = new FormData();
-            formData.append('image', file);
-
             diseaseStatusMessage.textContent = 'Analyzing image with AI...';
             diseaseResultBox.textContent = '';
             detectDiseaseBtn.disabled = true;
 
-            try {
-                const response = await fetch(`${BACKEND_API_BASE_URL}/api/plant-disease`, {
-                    method: 'POST',
-                    body: formData // Send form data directly
-                });
+            // Convert image to base64
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const base64ImageData = reader.result.split(',')[1];
 
-                if (!response.ok) {
-                    const errorBody = await response.json();
-                    throw new Error(errorBody.message || `API Error: ${response.statusText}`);
-                }
-
-                const results = await response.json();
+                const payload = {
+                    contents: [
+                        {
+                            role: "user",
+                            parts: [
+                                { text: diseasePrompt },
+                                {
+                                    inlineData: {
+                                        mimeType: file.type,
+                                        data: base64ImageData
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                };
                 
-                if (Array.isArray(results) && results.length > 0) {
-                    let formattedResults = "Analysis Complete. Possible Detections:\n\n";
-                    results.forEach(result => {
-                        const label = result.label.replace(/__/g, ' - ').replace(/_/g, ' ');
-                        const score = (result.score * 100).toFixed(2);
-                        formattedResults += `- ${label}: ${score}% confidence\n`;
-                    });
-                    diseaseResultBox.textContent = formattedResults;
-                    diseaseStatusMessage.textContent = 'Analysis complete.';
-                } else {
-                    diseaseResultBox.textContent = "Could not identify any diseases from the image.";
-                    diseaseStatusMessage.textContent = 'Analysis complete.';
-                }
+                const apiKey = ""; // Leave empty, handled by environment
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-            } catch (error) {
-                console.error("Backend API Error:", error);
-                diseaseResultBox.textContent = `An error occurred during analysis: ${error.message}`;
-                diseaseStatusMessage.textContent = 'Analysis failed.';
-            } finally {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorBody = await response.json();
+                        throw new Error(`API Error: ${errorBody.error.message}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        diseaseResultBox.textContent = text;
+                        diseaseStatusMessage.textContent = 'Analysis complete.';
+                    } else {
+                        throw new Error('Invalid response structure from API.');
+                    }
+
+                } catch (error) {
+                    console.error("Gemini API Error:", error);
+                    diseaseResultBox.textContent = `An error occurred during analysis: ${error.message}`;
+                    diseaseStatusMessage.textContent = 'Analysis failed.';
+                } finally {
+                    detectDiseaseBtn.disabled = false;
+                }
+            };
+            reader.onerror = (error) => {
+                console.error("File Reader Error:", error);
+                showMessageBox('Could not read the image file.');
+                diseaseStatusMessage.textContent = 'Error reading file.';
                 detectDiseaseBtn.disabled = false;
-            }
+            };
         }
 
         // --- Event Listeners ---
@@ -671,7 +718,7 @@
         });
 
         // Disease Detector Listeners
-        detectDiseaseBtn.addEventListener('click', analyzeDiseaseWithBackend); // UPDATED
+        detectDiseaseBtn.addEventListener('click', analyzeDiseaseWithGemini);
         diseaseImageUpload.addEventListener('change', () => {
             if (diseaseImageUpload.files.length) {
                 const reader = new FileReader();
