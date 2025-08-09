@@ -349,7 +349,7 @@
                 <div id="diseaseResultBox" class="disease-result-box">
                     Your analysis will appear here...
                 </div>
-                   <p id="diseaseStatusMessage" class="text-gray-600 mt-2 text-left"></p>
+                    <p id="diseaseStatusMessage" class="text-gray-600 mt-2 text-left"></p>
             </div>
         </div>
     </div>
@@ -364,9 +364,9 @@
         <header class="detail-header">
             <h2 id="detail-title" class="detail-title"></h2>
             <div class="flex gap-4">
-                   <button id="addToCollectionBtn" class="search-button">
-                     <i class="fas fa-plus mr-2"></i> Add to Collection
-                 </button>
+                    <button id="addToCollectionBtn" class="search-button">
+                        <i class="fas fa-plus mr-2"></i> Add to Collection
+                    </button>
                 <button id="back-btn" class="search-button">
                     <i class="fas fa-arrow-left mr-2"></i> Back
                 </button>
@@ -653,6 +653,10 @@
                         return wikiDetails ? { ...plant, ...wikiDetails, score: plant.score } : plant;
                     }));
                     renderPlantCards(lastPlantSearchResults, plantResults, true);
+                    // NEW: Award badge for first search
+                    if (window.parent && window.parent.awardBadge) {
+                        window.parent.awardBadge('firstsearchplantexplorer', 'First Search Plant Explorer');
+                    }
                 } else {
                     explorerStatusMessage.textContent = 'No confident identification found.';
                 }
@@ -674,6 +678,10 @@
                 if (wikiDetails) {
                     lastPlantSearchResults = [wikiDetails];
                     renderPlantCards(lastPlantSearchResults, plantResults, false);
+                    // NEW: Award badge for first search
+                    if (window.parent && window.parent.awardBadge) {
+                        window.parent.awardBadge('firstsearchplantexplorer', 'First Search Plant Explorer');
+                    }
                 } else {
                     explorerStatusMessage.textContent = `No information found for "${plantName}".`;
                 }
@@ -715,6 +723,10 @@
                 if (result.analysis) {
                     diseaseResultBox.textContent = result.analysis;
                     diseaseStatusMessage.textContent = 'Analysis complete.';
+                    // NEW: Award badge for first diagnosis
+                    if (window.parent && window.parent.awardBadge) {
+                        window.parent.awardBadge('firstdiagnosisplantexplorer', 'First Diagnosis Plant Explorer');
+                    }
                 } else {
                     throw new Error('Invalid response structure from backend.');
                 }
@@ -787,6 +799,10 @@
                 const result = await response.json();
                 if (result.status === 'Success') {
                     showMessageBox("Plant added to your collection!");
+                    // NEW: Award badge for first plant added
+                    if (window.parent && window.parent.awardBadge) {
+                        window.parent.awardBadge('firstplantaddedtocollection', 'First Plant Added to Collection');
+                    }
                     // Optionally refresh collection view if currently on it
                     if (!collectionView.classList.contains('hidden')) {
                         fetchUserCollection();
@@ -823,7 +839,7 @@
             if (document.referrer.includes('collection') || !collectionView.classList.contains('hidden')) { 
                  showView(collectionView);
             } else {
-                 showView(explorerView);
+                showView(explorerView);
             }
         });
         addToCollectionBtn.addEventListener('click', addPlantToCollection);
