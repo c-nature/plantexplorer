@@ -638,6 +638,11 @@
         async function identifyPlantFromImage() {
             playClickSound();
             if (!imageUploadInput.files.length) return showMessageBox('Please select an image file.');
+            
+            // NEW: Add local badge check before making the API call
+            const user = JSON.parse(localStorage.getItem('user'));
+            const hasBadge = user && user.badges && user.badges.includes('firstsearchplantexplorer');
+
             const formData = new FormData();
             formData.append('image', imageUploadInput.files[0]);
             explorerStatusMessage.textContent = 'Identifying plant...';
@@ -653,8 +658,8 @@
                         return wikiDetails ? { ...plant, ...wikiDetails, score: plant.score } : plant;
                     }));
                     renderPlantCards(lastPlantSearchResults, plantResults, true);
-                    // NEW: Award badge for first search
-                    if (window.parent && window.parent.awardBadge) {
+                    // NEW: Award badge for first search only if user doesn't have it yet
+                    if (window.parent && window.parent.awardBadge && !hasBadge) {
                         window.parent.awardBadge('firstsearchplantexplorer', 'First Search Plant Explorer');
                     }
                 } else {
@@ -671,6 +676,11 @@
             playClickSound();
             const plantName = plantNameSearchInput.value.trim();
             if (!plantName) return showMessageBox('Please enter a plant name.');
+            
+            // NEW: Add local badge check before making the API call
+            const user = JSON.parse(localStorage.getItem('user'));
+            const hasBadge = user && user.badges && user.badges.includes('firstsearchplantexplorer');
+
             explorerStatusMessage.textContent = `Searching for "${plantName}"...`;
             [identifyImageBtn, searchPlantByNameBtn].forEach(btn => btn.disabled = true);
             try {
@@ -678,8 +688,8 @@
                 if (wikiDetails) {
                     lastPlantSearchResults = [wikiDetails];
                     renderPlantCards(lastPlantSearchResults, plantResults, false);
-                    // NEW: Award badge for first search
-                    if (window.parent && window.parent.awardBadge) {
+                    // NEW: Award badge for first search only if user doesn't have it yet
+                    if (window.parent && window.parent.awardBadge && !hasBadge) {
                         window.parent.awardBadge('firstsearchplantexplorer', 'First Search Plant Explorer');
                     }
                 } else {
@@ -698,6 +708,10 @@
             if (!diseaseImageUpload.files.length) {
                 return showMessageBox('Please upload an image for analysis.');
             }
+
+            // NEW: Add local badge check before making the API call
+            const user = JSON.parse(localStorage.getItem('user'));
+            const hasBadge = user && user.badges && user.badges.includes('firstdiagnosisplantexplorer');
 
             const file = diseaseImageUpload.files[0];
             const formData = new FormData();
@@ -723,8 +737,8 @@
                 if (result.analysis) {
                     diseaseResultBox.textContent = result.analysis;
                     diseaseStatusMessage.textContent = 'Analysis complete.';
-                    // NEW: Award badge for first diagnosis
-                    if (window.parent && window.parent.awardBadge) {
+                    // NEW: Award badge for first diagnosis only if user doesn't have it yet
+                    if (window.parent && window.parent.awardBadge && !hasBadge) {
                         window.parent.awardBadge('firstdiagnosisplantexplorer', 'First Diagnosis Plant Explorer');
                     }
                 } else {
@@ -786,6 +800,10 @@
                 showMessageBox("Please log in on the main SmartyPants website to add to collection.");
                 return;
             }
+            
+            // NEW: Add local badge check before making the API call
+            const user = JSON.parse(localStorage.getItem('user'));
+            const hasBadge = user && user.badges && user.badges.includes('firstplantaddedtocollection');
 
             try {
                 const response = await fetch(`${BACKEND_API_BASE_URL}/api/user/collection/add`, {
@@ -799,8 +817,8 @@
                 const result = await response.json();
                 if (result.status === 'Success') {
                     showMessageBox("Plant added to your collection!");
-                    // NEW: Award badge for first plant added
-                    if (window.parent && window.parent.awardBadge) {
+                    // NEW: Award badge for first plant added only if user doesn't have it yet
+                    if (window.parent && window.parent.awardBadge && !hasBadge) {
                         window.parent.awardBadge('firstplantaddedtocollection', 'First Plant Added to Collection');
                     }
                     // Optionally refresh collection view if currently on it
