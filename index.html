@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;700&family=Lora:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Confetti.js library (for standalone badge notifications) -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -284,11 +286,37 @@
             border: 1px solid #A7D9B2;
             border-radius: 1rem;
             padding: 1.5rem;
-            white-space: pre-wrap; /* To respect newlines from the API */
+            white-space: pre-wrap;
             font-family: 'Lora', serif;
             color: #5A4F4A;
             height: 500px;
             overflow-y: auto;
+        }
+
+        /* --- Styles for the standalone badge notification pop-up --- */
+        #badge-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s, transform 0.5s;
+            z-index: 2000;
+            text-align: center;
+            font-family: 'Cormorant Garamond', serif;
+        }
+        #badge-notification.show {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #badge-notification h2, #badge-notification p {
+            color: white;
+            text-shadow: 
+                -2px -2px 0 #000, 2px -2px 0 #000, 
+                -2px 2px 0 #000, 2px 2px 0 #000, 
+                4px 4px 8px rgba(0,0,0,0.6);
         }
 
         @media (max-width: 768px) {
@@ -383,9 +411,19 @@
         </div>
     </div>
 
+    <!-- Standalone Badge Notification Pop-up -->
+    <div id="badge-notification" class="hidden flex flex-col items-center">
+        <h2 class="text-3xl font-bold text-yellow-300 mb-4">New Badge Unlocked!</h2>
+        <img id="badge-notification-img" src="" alt="New Badge" class="w-48 h-48 mb-4">
+        <p id="badge-notification-name" class="text-2xl text-white font-semibold"></p>
+    </div>
+
     <div id="messageBox" class="message-box"></div>
     <audio id="mainClickSoundElement" preload="auto">
-        <source src="click.mp3" type="audio/mpeg">
+        <source src="https://c-nature.github.io/smartypants/click.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="badgeSoundElement" preload="auto">
+        <source src="https://c-nature.github.io/smartypants/badge.wav" type="audio/wav">
     </audio>
 
     <script>
@@ -428,8 +466,9 @@
 
         // --- State ---
         let lastPlantSearchResults = [];
-        let currentDetailPlant = null; // To hold the plant data for the detail view
-        let currentUser = null; // To store logged-in user data
+        let currentDetailPlant = null;
+        let currentUser = null;
+        let userPlantCollection = [];
 
         // --- API Configuration ---
         const BACKEND_API_BASE_URL = 'https://smartypantsbe.onrender.com';
@@ -453,28 +492,22 @@
         function showView(viewToShow) {
             [explorerView, diseaseView, detailView, collectionView].forEach(view => view.classList.add('hidden'));
             viewToShow.classList.remove('hidden');
-
             [navExplorer, navDisease, navCollection].forEach(btn => btn.classList.remove('active'));
-            
-            if (viewToShow === explorerView) {
-                navExplorer.classList.add('active');
-            } else if (viewToShow === diseaseView) {
-                navDisease.classList.add('active');
-            } else if (viewToShow === collectionView) {
-                navCollection.classList.add('active');
-            }
-            updateNavigationUI(); // Ensure nav buttons are always updated
+            if (viewToShow === explorerView) navExplorer.classList.add('active');
+            else if (viewToShow === diseaseView) navDisease.classList.add('active');
+            else if (viewToShow === collectionView) navCollection.classList.add('active');
+            updateNavigationUI();
         }
 
         function updateNavigationUI() {
             if (currentUser && currentUser._id) {
                 navCollection.classList.remove('hidden');
                 navLogout.classList.remove('hidden');
-                addToCollectionBtn.classList.remove('hidden'); // Show "Add to Collection"
+                addToCollectionBtn.classList.remove('hidden');
             } else {
                 navCollection.classList.add('hidden');
                 navLogout.classList.add('hidden');
-                addToCollectionBtn.classList.add('hidden'); // Hide "Add to Collection"
+                addToCollectionBtn.classList.add('hidden');
             }
         }
 
@@ -490,16 +523,15 @@
         });
         navLogout.addEventListener('click', logoutUser);
 
-        // --- Authentication Logic (Simplified for SSO) ---
+        // --- Authentication Logic ---
         function logoutUser() {
             playClickSound();
-            localStorage.removeItem('user'); // Clear the entire user object
-            localStorage.removeItem('token'); // Clear the token if stored separately
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
             currentUser = null;
-            showMessageBox("Logged out successfully. Please log in on the main SmartyPants website to access full features.");
+            showMessageBox("Logged out successfully.");
             updateNavigationUI();
-            showView(explorerView); // Redirect to explorer after logout
-            // Clear content from other views
+            showView(explorerView);
             plantResults.innerHTML = '';
             explorerStatusMessage.textContent = 'Upload an image or enter a name to identify plants!';
             diseaseResultBox.textContent = 'Your analysis will appear here...';
@@ -510,7 +542,69 @@
             diseaseImagePreview.classList.add('hidden');
         }
 
-        // --- Wikipedia and Image Fetching (Plant Explorer) ---
+        // --- Badge Awarding Logic ---
+        function showBadgeNotification(badgeName, badgeDisplayName) {
+            const badgeNotification = document.getElementById('badge-notification');
+            const badgeNotificationImg = document.getElementById('badge-notification-img');
+            const badgeNotificationName = document.getElementById('badge-notification-name');
+            const badgeSoundElement = document.getElementById('badgeSoundElement');
+
+            if (badgeSoundElement) {
+                badgeSoundElement.currentTime = 0;
+                badgeSoundElement.play().catch(e => console.warn("Error playing badge sound:", e));
+            }
+            if (typeof confetti === 'function') {
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            }
+            badgeNotificationImg.src = `https://c-nature.github.io/smartypants/Badges/${badgeName}.png`;
+            badgeNotificationName.textContent = badgeDisplayName;
+            badgeNotification.classList.remove('hidden');
+            setTimeout(() => { badgeNotification.classList.add('show'); }, 10);
+            setTimeout(() => {
+                badgeNotification.classList.remove('show');
+                setTimeout(() => { badgeNotification.classList.add('hidden'); }, 500);
+            }, 4000);
+        }
+
+        async function awardBadge(badgeName, badgeDisplayName) {
+            if (window.self !== window.top && window.parent.awardBadge) {
+                console.log(`Awarding badge '${badgeName}' via parent window.`);
+                window.parent.awardBadge(badgeName, badgeDisplayName);
+                return;
+            }
+            console.log(`Awarding badge '${badgeName}' via direct API call.`);
+            try {
+                const token = localStorage.getItem('token');
+                const userString = localStorage.getItem('user');
+                if (!token || !userString) {
+                    console.log("Direct badge award failed: User not logged in.");
+                    return;
+                }
+                const user = JSON.parse(userString);
+                if (user.badges && user.badges.includes(badgeName)) {
+                    console.log(`Direct badge award skipped: User already has badge '${badgeName}'.`);
+                    return;
+                }
+                const response = await fetch(`${BACKEND_API_BASE_URL}/api/user/award-badge`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ userId: user._id, badgeName: badgeName })
+                });
+                const result = await response.json();
+                if (result.status === "Success" && !result.alreadyAwarded) {
+                    console.log(`Badge '${badgeName}' awarded successfully via API.`);
+                    user.badges.push(badgeName);
+                    localStorage.setItem('user', JSON.stringify(user));
+                    showBadgeNotification(badgeName, badgeDisplayName);
+                } else {
+                    console.log("Badge already awarded or other error.", result.message);
+                }
+            } catch (error) {
+                console.error("Error awarding badge directly via API:", error);
+            }
+        }
+
+        // --- Wikipedia and Image Fetching ---
         async function fetchWikipediaPlantDetails(plantName) {
             const url = `${wikipediaApiUrl}&prop=extracts&exintro=1&explaintext=1&redirects=1&titles=${encodeURIComponent(plantName)}`;
             try {
@@ -525,7 +619,7 @@
                         family: 'N/A',
                         genus: 'N/A',
                         characteristics: { description: page.extract || 'No description.' },
-                        wikipedia_url: `https://en.wikipedia.org/wiki/${encodeURIComponent(plantName)}` // Construct full Wikipedia URL
+                        wikipedia_url: `https://en.wikipedia.org/wiki/${encodeURIComponent(plantName)}`
                     };
                 }
             } catch (error) { console.error("Wiki fetch error:", error); }
@@ -556,7 +650,7 @@
             return [];
         }
 
-        // --- UI Rendering (Plant Explorer & Collection) ---
+        // --- UI Rendering ---
         async function renderPlantCards(plants, container, isIdentificationResult = false) {
             container.innerHTML = '';
             if (!plants || plants.length === 0) {
@@ -564,19 +658,16 @@
                 if(container === collectionGrid) collectionStatusMessage.textContent = `Your collection is empty.`;
                 return;
             }
-             if(container === plantResults) explorerStatusMessage.textContent = `Found ${plants.length} results.`;
-             if(container === collectionGrid) collectionStatusMessage.textContent = `You have ${plants.length} plants in your collection.`;
-
+            if(container === plantResults) explorerStatusMessage.textContent = `Found ${plants.length} results.`;
+            if(container === collectionGrid) collectionStatusMessage.textContent = `You have ${plants.length} plants in your collection.`;
 
             const cards = await Promise.all(plants.map(async (plant) => {
                 const card = document.createElement('div');
                 card.className = 'plant-card';
-                // Use a unique identifier if available, otherwise combine names
                 card.dataset.plantId = plant.scientificName || plant.commonName;
                 
-                // For new searches, fetch image. For collection, use stored imageUrl.
                 const imageUrl = plant.imageUrl || await fetchPlantImage(plant.commonName || plant.scientificName);
-                plant.imageUrl = imageUrl; // Ensure it's stored for detail view
+                plant.imageUrl = imageUrl;
 
                 card.innerHTML = `
                     <img src="${imageUrl || 'https://placehold.co/200x200/cccccc/000000?text=No+Image'}" alt="${plant.commonName || plant.scientificName}" class="plant-image">
@@ -598,19 +689,15 @@
             });
         }
 
-
         async function showDetailView(plant) {
-            currentDetailPlant = plant; // Store the current plant's data
+            currentDetailPlant = plant;
             showView(detailView);
             const displayName = plant.commonName && plant.commonName !== 'N/A' ? plant.commonName : plant.scientificName;
             detailTitle.textContent = displayName;
             galleryLoader.classList.remove('hidden');
             galleryGrid.innerHTML = '';
             const mainImageSrc = plant.imageUrl || 'https://placehold.co/400x300/cccccc/000000?text=No+Image';
-            
-            const description = (plant.characteristics && plant.characteristics.description) 
-                ? plant.characteristics.description 
-                : 'No description available.';
+            const description = (plant.characteristics && plant.characteristics.description) ? plant.characteristics.description : 'No description available.';
 
             detailContent.innerHTML = `
                 <div>
@@ -634,12 +721,11 @@
             });
         }
 
-        // --- Core Logic (Plant Explorer) ---
+        // --- Core Logic ---
         async function identifyPlantFromImage() {
             playClickSound();
             if (!imageUploadInput.files.length) return showMessageBox('Please select an image file.');
             
-            // NEW: Add local badge check before making the API call
             const user = JSON.parse(localStorage.getItem('user'));
             const hasBadge = user && user.badges && user.badges.includes('firstsearchplantexplorer');
 
@@ -658,9 +744,8 @@
                         return wikiDetails ? { ...plant, ...wikiDetails, score: plant.score } : plant;
                     }));
                     renderPlantCards(lastPlantSearchResults, plantResults, true);
-                    // NEW: Award badge for first search only if user doesn't have it yet
-                    if (window.parent && window.parent.awardBadge && !hasBadge) {
-                        window.parent.awardBadge('firstsearchplantexplorer', 'First Search Plant Explorer');
+                    if (!hasBadge) {
+                        awardBadge('firstsearchplantexplorer', 'First Search Plant Explorer');
                     }
                 } else {
                     explorerStatusMessage.textContent = 'No confident identification found.';
@@ -677,7 +762,6 @@
             const plantName = plantNameSearchInput.value.trim();
             if (!plantName) return showMessageBox('Please enter a plant name.');
             
-            // NEW: Add local badge check before making the API call
             const user = JSON.parse(localStorage.getItem('user'));
             const hasBadge = user && user.badges && user.badges.includes('firstsearchplantexplorer');
 
@@ -688,9 +772,8 @@
                 if (wikiDetails) {
                     lastPlantSearchResults = [wikiDetails];
                     renderPlantCards(lastPlantSearchResults, plantResults, false);
-                    // NEW: Award badge for first search only if user doesn't have it yet
-                    if (window.parent && window.parent.awardBadge && !hasBadge) {
-                        window.parent.awardBadge('firstsearchplantexplorer', 'First Search Plant Explorer');
+                    if (!hasBadge) {
+                        awardBadge('firstsearchplantexplorer', 'First Search Plant Explorer');
                     }
                 } else {
                     explorerStatusMessage.textContent = `No information found for "${plantName}".`;
@@ -702,14 +785,12 @@
             }
         }
 
-        // --- Core Logic (Disease Detector) ---
         async function analyzeDiseaseWithBackend() {
             playClickSound();
             if (!diseaseImageUpload.files.length) {
                 return showMessageBox('Please upload an image for analysis.');
             }
 
-            // NEW: Add local badge check before making the API call
             const user = JSON.parse(localStorage.getItem('user'));
             const hasBadge = user && user.badges && user.badges.includes('firstdiagnosisplantexplorer');
 
@@ -737,9 +818,8 @@
                 if (result.analysis) {
                     diseaseResultBox.textContent = result.analysis;
                     diseaseStatusMessage.textContent = 'Analysis complete.';
-                    // NEW: Award badge for first diagnosis only if user doesn't have it yet
-                    if (window.parent && window.parent.awardBadge && !hasBadge) {
-                        window.parent.awardBadge('firstdiagnosisplantexplorer', 'First Diagnosis Plant Explorer');
+                    if (!hasBadge) {
+                        awardBadge('firstdiagnosisplantexplorer', 'First Diagnosis Plant Explorer');
                     }
                 } else {
                     throw new Error('Invalid response structure from backend.');
@@ -754,10 +834,6 @@
             }
         }
 
-        // --- Core Logic (Collection) ---
-        let userPlantCollection = [];
-
-        // Function to get the user ID from localStorage
         const getUserId = () => {
             const user = JSON.parse(localStorage.getItem('user'));
             return user ? user._id : null;
@@ -767,7 +843,7 @@
             const userId = getUserId();
             if (!userId) {
                 collectionStatusMessage.textContent = "Please log in on the main SmartyPants website to fetch your collection.";
-                collectionGrid.innerHTML = ''; // Clear previous results
+                collectionGrid.innerHTML = '';
                 return;
             }
             collectionStatusMessage.textContent = "Fetching your collection...";
@@ -801,7 +877,6 @@
                 return;
             }
             
-            // NEW: Add local badge check before making the API call
             const user = JSON.parse(localStorage.getItem('user'));
             const hasBadge = user && user.badges && user.badges.includes('firstplantaddedtocollection');
 
@@ -817,11 +892,9 @@
                 const result = await response.json();
                 if (result.status === 'Success') {
                     showMessageBox("Plant added to your collection!");
-                    // NEW: Award badge for first plant added only if user doesn't have it yet
-                    if (window.parent && window.parent.awardBadge && !hasBadge) {
-                        window.parent.awardBadge('firstplantaddedtocollection', 'First Plant Added to Collection');
+                    if (!hasBadge) {
+                        awardBadge('firstplantaddedtocollection', 'First Plant Added to Collection');
                     }
-                    // Optionally refresh collection view if currently on it
                     if (!collectionView.classList.contains('hidden')) {
                         fetchUserCollection();
                     }
@@ -835,7 +908,7 @@
         }
 
 
-        // --- Event Listeners ---
+        // --- Event Listeners Setup ---
         identifyImageBtn.addEventListener('click', identifyPlantFromImage);
         imageUploadInput.addEventListener('change', () => {
             if (imageUploadInput.files.length) {
@@ -853,17 +926,13 @@
         plantNameSearchInput.addEventListener('keyup', (e) => e.key === 'Enter' && searchPlantsByName());
         backBtn.addEventListener('click', () => {
             playClickSound();
-            // A simple way to check where user came from, though a more robust routing solution is ideal
             if (document.referrer.includes('collection') || !collectionView.classList.contains('hidden')) { 
                  showView(collectionView);
             } else {
-                showView(explorerView);
+                 showView(explorerView);
             }
         });
         addToCollectionBtn.addEventListener('click', addPlantToCollection);
-
-
-        // Disease Detector Listeners
         detectDiseaseBtn.addEventListener('click', analyzeDiseaseWithBackend);
         diseaseImageUpload.addEventListener('change', () => {
             if (diseaseImageUpload.files.length) {
@@ -879,13 +948,22 @@
         });
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Check for existing user session on load
+            const urlParams = new URLSearchParams(window.location.search);
+            const authToken = urlParams.get('authToken');
+            const userData = urlParams.get('userData');
+            if (authToken && userData) {
+                console.log("Auth data found in URL, setting up standalone session...");
+                localStorage.setItem('token', authToken);
+                localStorage.setItem('user', userData);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
             const storedUser = localStorage.getItem('user');
             if (storedUser) {
                 currentUser = JSON.parse(storedUser);
             }
-            updateNavigationUI(); // Update nav buttons based on login status
-            showView(explorerView); // Start on the explorer view
+            updateNavigationUI();
+            showView(explorerView);
             explorerStatusMessage.textContent = 'Upload an image or enter a name to identify plants!';
         });
     </script>
